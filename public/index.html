@@ -12,200 +12,38 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js"></script>
+  <!-- Font Awesome para ícones -->
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
 </head>
-<body class="bg-gray-100 font-sans">
-  <div class="container mx-auto p-4">
-    <!-- Login Section -->
-    <div id="loginSection" class="mb-6">
-      <h1 class="text-3xl font-bold mb-4">Login Administrativo</h1>
-      <input id="emailInput" type="email" placeholder="Email" class="border p-2 rounded mb-2 w-full">
-      <input id="passwordInput" type="password" placeholder="Senha" class="border p-2 rounded mb-2 w-full">
-      <button id="loginButton" class="bg-blue-500 text-white p-2 rounded">Entrar</button>
-      <p id="loginError" class="text-red-500 hidden mt-2"></p>
-    </div>
+<body class="bg-gray-100 min-h-screen flex">
+  <!-- Sidebar -->
+  <div id="sidebar" class="w-64 bg-gray-900 text-white h-screen p-6">
+    <h1 class="text-2xl font-bold mb-8">Robustos</h1>
+    <nav>
+      <a href="#" class="flex items-center p-2 rounded hover:bg-gray-700">
+        <i class="fas fa-home mr-2"></i> Dashboard
+      </a>
+      <a href="#" class="flex items-center p-2 rounded hover:bg-gray-700">
+        <i class="fas fa-exclamation-circle mr-2"></i> Problemas
+      </a>
+      <button id="logoutButton" class="flex items-center p-2 rounded hover:bg-gray-700 w-full text-left mt-4">
+        <i class="fas fa-sign-out-alt mr-2"></i> Sair
+      </button>
+    </nav>
+  </div>
 
-    <!-- Admin Panel -->
-    <div id="adminPanel" class="hidden">
-      <div class="flex justify-between items-center mb-4">
-        <h1 class="text-3xl font-bold">Painel Administrativo - Problemas Reportados</h1>
-        <button id="logoutButton" class="bg-red-500 text-white p-2 rounded">Sair</button>
+  <!-- Main Content -->
+  <div id="mainContent" class="flex-1 p-8">
+    <div class="max-w-7xl mx-auto">
+      <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">Problemas Reportados</h1>
+        <div id="notificationStatus" class="text-green-600"></div>
       </div>
-      <div id="notificationStatus" class="mb-4 text-green-500"></div>
-      <table class="min-w-full bg-white border border-gray-300">
-        <thead>
-          <tr>
-            <th class="py-2 px-4 border-b">Título</th>
-            <th class="py-2 px-4 border-b">Descrição</th>
-            <th class="py-2 px-4 border-b">Município</th>
-            <th class="py-2 px-4 border-b">Bairro</th>
-            <th class="py-2 px-4 border-b">Categoria</th>
-            <th class="py-2 px-4 border-b">Urgência</th>
-            <th class="py-2 px-4 border-b">Responsável</th>
-            <th class="py-2 px-4 border-b">Status</th>
-            <th class="py-2 px-4 border-b">Ações</th>
-            <th class="py-2 px-4 border-b">Imagem</th>
-          </tr>
-        </thead>
-        <tbody id="problemsTableBody"></tbody>
-      </table>
+      <div id="problemsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
     </div>
   </div>
 
-  <script>
-    // Firebase Configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyDVtY6ML3j-qrIsAprIJPB5xFFCbcf4UQw",
-      authDomain: "facilita-479b3.firebaseapp.com",
-      databaseURL: "https://facilita-479b3-default-rtdb.firebaseio.com",
-      projectId: "facilita-479b3",
-      storageBucket: "facilita-479b3.firebasestorage.app",
-      messagingSenderId: "385676676886",
-      appId: "1:385676676886:web:hpv5p5d4onvvosgglv5lf4337bv2bojc"
-    };
-
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.database();
-    const firestore = firebase.firestore();
-    const messaging = firebase.messaging();
-
-    // Elements
-    const loginButton = document.getElementById('loginButton');
-    const logoutButton = document.getElementById('logoutButton');
-    const emailInput = document.getElementById('emailInput');
-    const passwordInput = document.getElementById('passwordInput');
-    const loginError = document.getElementById('loginError');
-    const loginSection = document.getElementById('loginSection');
-    const adminPanel = document.getElementById('adminPanel');
-
-    // Authentication
-    loginButton.addEventListener('click', () => {
-      const email = emailInput.value;
-      const password = passwordInput.value;
-      auth.signInWithEmailAndPassword(email, password)
-        .then(() => {
-          loginSection.classList.add('hidden');
-          adminPanel.classList.remove('hidden');
-          initializeAdminPanel();
-          requestNotificationPermission();
-        })
-        .catch((error) => {
-          loginError.textContent = 'Erro de login: ' + error.message;
-          loginError.classList.remove('hidden');
-        });
-    });
-
-    logoutButton.addEventListener('click', () => {
-      auth.signOut().then(() => {
-        adminPanel.classList.add('hidden');
-        loginSection.classList.remove('hidden');
-        document.getElementById('notificationStatus').textContent = '';
-      }).catch((error) => {
-        alert('Erro ao sair: ' + error.message);
-      });
-    });
-
-    // Request Notification Permission
-    function requestNotificationPermission() {
-      messaging.requestPermission()
-        .then(() => {
-          console.log('Permissão concedida para notificações');
-          return messaging.getToken({ vapidKey: 'BKnyjZ4OaEOqoOBovd2bu4f-SwrN6WDW6lkSwkd4BQj8RCY5xxQtWFnBSTRWgOksECGYLbVSl-bpJB-pq3yzkkk' }); // Replace with your VAPID key
-        })
-        .then((token) => {
-          document.getElementById('notificationStatus').textContent = 'Token de notificação: ' + token;
-          console.log('Token:', token);
-        })
-        .catch((error) => {
-          console.error('Erro ao solicitar permissão:', error);
-        });
-    }
-
-    // Register Service Worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/firebase-messaging-sw.js')
-        .then((registration) => {
-          messaging.useServiceWorker(registration);
-          console.log('Service Worker registrado com sucesso:', registration);
-        })
-        .catch((error) => {
-          console.error('Erro ao registrar Service Worker:', error);
-        });
-    }
-
-    // Initialize Admin Panel
-    function initializeAdminPanel() {
-      const problemsRef = db.ref('problems');
-      const tbody = document.getElementById('problemsTableBody');
-
-      problemsRef.on('value', async (snapshot) => {
-        const problems = snapshot.val();
-        tbody.innerHTML = '';
-
-        if (!problems) {
-          tbody.innerHTML = '<tr><td colspan="10" class="py-2 px-4 text-center">Nenhum problema encontrado</td></tr>';
-          return;
-        }
-
-        for (const [problemId, problem] of Object.entries(problems)) {
-          const responsibleName = await getResponsibleName(problem.responsibleId);
-          const createdAt = problem.createdAt ? new Date(problem.createdAt).toLocaleString('pt-BR') : 'Sem data';
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td class="py-2 px-4 border-b">${problem.title || 'Sem título'}</td>
-            <td class="py-2 px-4 border-b">${problem.description || 'Sem descrição'}</td>
-            <td class="py-2 px-4 border-b">${problem.municipality || 'Sem município'}</td>
-            <td class="py-2 px-4 border-b">${problem.neighborhood || 'Sem bairro'}</td>
-            <td class="py-2 px-4 border-b">${problem.category || 'Sem categoria'}</td>
-            <td class="py-2 px-4 border-b">${problem.urgency || 'Sem urgência'}</td>
-            <td class="py-2 px-4 border-b">${responsibleName}</td>
-            <td class="py-2 px-4 border-b">${problem.status || 'Sem status'}</td>
-            <td class="py-2 px-4 border-b">
-              <select onchange="updateStatus('${problemId}', this.value)" class="border p-1 rounded">
-                <option value="Aguardando" ${problem.status === 'Aguardando' ? 'selected' : ''}>Aguardando</option>
-                <option value="Em Andamento" ${problem.status === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option>
-                <option value="Resolvido" ${problem.status === 'Resolvido' ? 'selected' : ''}>Resolvido</option>
-              </select>
-            </td>
-            <td class="py-2 px-4 border-b">
-              ${problem.imageUrl ? `<a href="${problem.imageUrl}" target="_blank"><img src="${problem.imageUrl}" alt="Imagem do problema" class="w-16 h-16 object-cover"></a>` : 'Sem imagem'}
-            </td>
-          `;
-          tbody.appendChild(row);
-        }
-      });
-
-      // Real-time Notification for New Problems
-      problemsRef.on('child_added', (snapshot) => {
-        const problem = snapshot.val();
-        if (Notification.permission === 'granted') {
-          new Notification('Novo Problema Reportado', {
-            body: `${problem.title} - ${problem.description}`,
-            icon: '/icons/Icon-192.png'
-          });
-        }
-      });
-    }
-
-    // Get Responsible Name
-    async function getResponsibleName(responsibleId) {
-      if (!responsibleId) return 'Sem responsável';
-      try {
-        const doc = await firestore.collection('usuarios').doc(responsibleId).get();
-        return doc.exists ? doc.data().nome || 'Nome não disponível' : 'Responsável não encontrado';
-      } catch (error) {
-        console.error('Erro ao buscar responsável:', error);
-        return 'Erro ao carregar responsável';
-      }
-    }
-
-    // Update Problem Status
-    function updateStatus(problemId, newStatus) {
-      db.ref('problems').child(problemId).update({ status: newStatus })
-        .then(() => alert('Status atualizado com sucesso!'))
-        .catch((error) => alert('Erro ao atualizar status: ' + error.message));
-    }
-  </script>
+  <script src="/auth.js" type="module"></script>
+  <script src="/app.js" type="module"></script>
 </body>
 </html>

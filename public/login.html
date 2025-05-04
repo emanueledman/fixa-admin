@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Painel Administrativo Robustos</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-500 to-purple-600 min-h-screen flex items-center justify-center">
+  <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Login Administrativo</h1>
+    <input id="emailInput" type="email" placeholder="Email" class="border p-3 rounded w-full mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+    <input id="passwordInput" type="password" placeholder="Senha" class="border p-3 rounded w-full mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+    <button id="loginButton" class="bg-blue-600 text-white p-3 rounded w-full hover:bg-blue-700 transition">Entrar</button>
+    <p id="loginError" class="text-red-500 text-center mt-4 hidden"></p>
+  </div>
+  <script src="/auth.js" type="module"></script>
+</body>
+</html>
