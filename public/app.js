@@ -3,43 +3,48 @@ import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10
 import { getMessaging, getToken } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js';
 import { auth } from '/auth.js';
 
-// Initialize Firebase Services
+// Firebase Services
 const db = getDatabase();
 const firestore = getFirestore();
 const messaging = getMessaging();
 
-// Register Service Worker
+// Service Worker
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/firebase-messaging-sw.js')
     .then((registration) => {
       messaging.useServiceWorker(registration);
-      console.log('Service Worker registrado com sucesso:', registration);
+      console.log('Service Worker OK:', registration);
     })
     .catch((error) => {
-      console.error('Erro ao registrar Service Worker:', error);
+      console.error('Erro no Service Worker:', error);
     });
 }
 
-// Request Notification Permission
+// Notifications
 function requestNotificationPermission() {
   messaging.requestPermission()
     .then(() => {
-      console.log('Permissão concedida para notificações');
-      return getToken(messaging, { vapidKey: 'SUA_VAPID_KEY' }); // Replace with your VAPID key
+      console.log('Permissão de notificações OK');
+      return getToken(messaging, { vapidKey: 'SUA_VAPID_KEY' }); // Substitua pelo VAPID key
     })
     .then((token) => {
       document.getElementById('notificationStatus').textContent = 'Notificações ativas';
       console.log('Token:', token);
     })
     .catch((error) => {
-      console.error('Erro ao solicitar permissão:', error);
+      console.error('Erro nas notificações:', error);
     });
 }
 
-// Initialize Admin Panel
+// Admin Panel
 function initializeAdminPanel() {
   const problemsRef = ref(db, 'problems');
   const problemsGrid = document.getElementById('problemsGrid');
+
+  if (!problemsGrid) {
+    console.error('Grid de problemas não encontrado!');
+    return;
+  }
 
   onValue(problemsRef, async (snapshot) => {
     const problems = snapshot.val();
@@ -78,12 +83,12 @@ function initializeAdminPanel() {
     }
   });
 
-  // Real-time Notification for New Problems
+  // Notifications for New Problems
   onValue(ref(db, 'problems'), (snapshot) => {
     snapshot.forEach((childSnapshot) => {
       const problem = childSnapshot.val();
       if (Notification.permission === 'granted') {
-        new Notification('Novo Problema Reportado', {
+        new Notification('Novo Problema', {
           body: `${problem.title} - ${problem.description}`,
           icon: '/assets/icons/Icon-192.png'
         });
@@ -92,7 +97,7 @@ function initializeAdminPanel() {
   }, { onlyOnce: false });
 }
 
-// Get Responsible Name
+// Responsible Name
 async function getResponsibleName(responsibleId) {
   if (!responsibleId) return 'Sem responsável';
   try {
@@ -105,19 +110,16 @@ async function getResponsibleName(responsibleId) {
   }
 }
 
-// Update Problem Status
+// Update Status
 function updateStatus(problemId, newStatus) {
   update(ref(db, `problems/${problemId}`), { status: newStatus })
-    .then(() => alert('Status atualizado com sucesso!'))
+    .then(() => alert('Status atualizado!'))
     .catch((error) => alert('Erro ao atualizar status: ' + error.message));
 }
 
-// Initialize when user is authenticated
+// Initialize
 auth.onAuthStateChanged((user) => {
-  if (user) {
-    document.getElementById('loginModal').classList.add('hidden');
-    document.getElementById('sidebar').classList.remove('hidden');
-    document.getElementById('mainContent').classList.remove('hidden');
+  if (user && window.location.pathname === '/index.html') {
     initializeAdminPanel();
     requestNotificationPermission();
   }
