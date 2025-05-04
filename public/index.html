@@ -15,21 +15,24 @@
 </head>
 <body class="bg-gray-50 min-h-screen flex font-sans">
   <!-- Sidebar -->
-  <div id="sidebar" class="w-64 bg-gray-800 text-white h-screen p-6 fixed transition-all duration-300 ease-in-out transform lg:translate-x-0 -translate-x-full lg:static">
+  <div id="sidebar" class="w-64 bg-blue-900 text-white h-screen p-6 fixed transition-all duration-300 ease-in-out transform lg:translate-x-0 -translate-x-full lg:static">
     <div class="flex items-center justify-between mb-8">
-      <h1 class="text-2xl font-bold">Facilita</h1>
+      <h1 class="text-2xl font-bold">FixABairro</h1>
       <button id="sidebarToggle" class="lg:hidden text-white focus:outline-none">
         <i class="fas fa-times"></i>
       </button>
     </div>
     <nav>
-      <a href="#" class="flex items-center p-3 rounded-lg hover:bg-gray-700 transition">
+      <a href="#" class="flex items-center p-3 rounded-lg hover:bg-blue-800 transition">
         <i class="fas fa-home mr-3"></i> Dashboard
       </a>
-      <a href="#" class="flex items-center p-3 rounded-lg hover:bg-gray-700 transition">
+      <a href="#" class="flex items-center p-3 rounded-lg hover:bg-blue-800 transition">
         <i class="fas fa-exclamation-circle mr-3"></i> Problemas
       </a>
-      <button id="logoutButton" class="flex items-center p-3 rounded-lg hover:bg-gray-700 w-full text-left mt-4">
+      <a href="#" id="reportsLink" class="flex items-center p-3 rounded-lg hover:bg-blue-800 transition">
+        <i class="fas fa-chart-bar mr-3"></i> Relatórios
+      </a>
+      <button id="logoutButton" class="flex items-center p-3 rounded-lg hover:bg-blue-800 w-full text-left mt-4">
         <i class="fas fa-sign-out-alt mr-3"></i> Sair
       </button>
     </nav>
@@ -43,7 +46,7 @@
         <button id="sidebarOpen" class="lg:hidden text-gray-600 mr-4 focus:outline-none">
           <i class="fas fa-bars text-2xl"></i>
         </button>
-        <h1 class="text-3xl font-bold text-gray-800">Problemas Reportados</h1>
+        <h1 id="pageTitle" class="text-3xl font-bold text-gray-800">Problemas Reportados</h1>
       </div>
       <div class="flex items-center space-x-4">
         <input id="searchInput" type="text" placeholder="Buscar problemas..." class="border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -58,7 +61,44 @@
     </div>
 
     <!-- Problems Grid -->
-    <div id="problemsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    <div id="problemsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden"></div>
+
+    <!-- Reports Section -->
+    <div id="reportsSection" class="hidden">
+      <div class="bg-white p-6 rounded-xl shadow-lg mb-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Relatórios de Problemas</h2>
+        <select id="reportPeriod" class="border p-2 rounded-lg mb-4">
+          <option value="30">Último mês</option>
+          <option value="90">Últimos 3 meses</option>
+          <option value="365">Último ano</option>
+        </select>
+        <div id="reportStats" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+      </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+      <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-md">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Editar Problema</h2>
+        <input id="editTitle" type="text" placeholder="Título" class="border p-3 rounded-lg w-full mb-4">
+        <textarea id="editDescription" placeholder="Descrição" class="border p-3 rounded-lg w-full mb-4"></textarea>
+        <select id="editStatus" class="border p-3 rounded-lg w-full mb-4">
+          <option value="Aguardando">Aguardando</option>
+          <option value="Em Andamento">Em Andamento</option>
+          <option value="Resolvido">Resolvido</option>
+        </select>
+        <select id="editUrgency" class="border p-3 rounded-lg w-full mb-4">
+          <option value="Baixa">Baixa</option>
+          <option value="Média">Média</option>
+          <option value="Alta">Alta</option>
+        </select>
+        <input id="editSuggestion" type="text" placeholder="Sugestão" class="border p-3 rounded-lg w-full mb-4">
+        <div class="flex justify-end space-x-4">
+          <button id="cancelEdit" class="bg-gray-300 text-gray-800 p-3 rounded-lg hover:bg-gray-400">Cancelar</button>
+          <button id="saveEdit" class="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700">Salvar</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="/auth.js" type="module"></script>
