@@ -522,7 +522,8 @@
       projectId: "facilita-479b3",
       storageBucket: "facilita-479b3.appspot.com",
       messagingSenderId: "385676676886",
-      appId: "1:385676676886:web:6976de7f3abc6c0da94a37"
+      appId: "1:385676676886:web:6976de7f3abc6c0da94a37",
+      databaseURL: "https://facilita-479b3-default-rtdb.firebaseio.com/"
     };
     
     firebase.initializeApp(firebaseConfig);
@@ -697,7 +698,7 @@
 
     // Admin Panel
     function initializeAdminPanel(userId) {
-      const problemsRef = db.ref('relatorios_problemas');
+      const problemsRef = db.ref('problems');
       const problemsGrid = document.getElementById('problemsGrid');
       const searchInput = document.getElementById('searchInput');
       const statusFilter = document.getElementById('statusFilter');
@@ -715,39 +716,18 @@
       }
 
       // Load Problems
-      problemsRef.on('value', (snapshot) => {
-        console.log('Snapshot recebido:', snapshot.exists());
-        const problems = snapshot.val();
-        allProblems = [];
-
-        if (!problems) {
-          console.warn('Nenhum problema encontrado no banco');
-          problemsGrid.innerHTML = `<div class="col-12"><p class="text-center text-muted">${translate('noProblems')}</p></div>`;
-          renderPagination();
-          if (document.getElementById('mapSection').classList.contains('d-none')) {
-            initializeMap();
-          }
-          return;
-        }
-
-        allProblems = Object.entries(problems).filter(([_, problem]) => {
-          console.log('Verificando problema:', { id: problem.responsibleId, expected: userId });
-          return problem.responsibleId === userId;
-        }).map(([id, problem]) => ({ id, ...problem }));
-
-        console.log('Problemas filtrados:', allProblems);
-
-        if (allProblems.length === 0) {
-          console.warn('Nenhum problema encontrado para responsibleId:', userId);
-          problemsGrid.innerHTML = `<div class="col-12"><p class="text-center text-muted">${translate('noProblemsAssigned')}</p></div>`;
-        }
-
+      problemsRef.on('child_added', (snapshot) => {
+        console.log('Novo problema adicionado:', snapshot.key, snapshot.val());
+        const problem = snapshot.val();
+        const problemData = { id: snapshot.key, ...problem };
+        allProblems.push(problemData);
+        console.log('Problema adicionado à lista:', problemData);
         renderProblems();
         if (!document.getElementById('mapSection').classList.contains('d-none')) {
           initializeMap();
         }
       }, (error) => {
-        console.error('Erro ao ler problemas:', error);
+        console.error('Erro ao configurar listener de problemas:', error);
         problemsGrid.innerHTML = `<div class="col-12"><p class="text-center text-danger">${translate('errorLoading')}</p></div>`;
         showToast('Erro ao carregar dados', 'danger');
       });
@@ -757,12 +737,18 @@
         const start = (currentPage - 1) * ITEMS_PER_PAGE;
         const end = start + ITEMS_PER_PAGE;
         const filteredProblems = filterProblems();
+        console.log('Problemas filtrados para renderização:', filteredProblems);
         const paginatedProblems = filteredProblems.slice(start, end);
         problemsGrid.innerHTML = '';
 
+        if (paginatedProblems.length === 0) {
+          console.warn('Nenhum problema para exibir após filtragem');
+          problemsGrid.innerHTML = `<div class="col-12"><p class="text-center text-muted">${translate('noProblems')}</p></div>`;
+        }
+
         for (const problem of paginatedProblems) {
           try {
-            const createdAt = problem.createdAt ? formatDate(new Date(problem.createdAt.seconds * 1000)) : 'Sem data';
+            const createdAt = problem.createdAt ? formatDate(problem.createdAt) : 'Sem data';
             const urgencyClass = problem.urgency === 'Alta' ? 'text-danger' : problem.urgency === 'Média' ? 'text-warning' : 'text-success';
             const card = document.createElement('div');
             card.className = 'col';
@@ -778,6 +764,7 @@
                   <p class="card-text"><strong>Status:</strong> ${problem.status || 'Sem status'}</p>
                   <p class="card-text"><strong>Sugestão:</strong> ${problem.suggestion || 'Sem sugestão'}</p>
                   <p class="card-text"><strong>Criado em:</strong> ${createdAt}</p>
+                  <p class="card-text"><strong>Responsible ID:</strong> ${problem.responsibleId || 'Nenhum'}</p>
                   ${problem.imageUrl ? `<a href="${problem.imageUrl}" target="_blank"><img src="${problem.imageUrl}" alt="Imagem do problema" class="img-fluid rounded mb-3" style="max-height: 150px;"></a>` : '<p class="text-muted">Sem imagem</p>'}
                 </div>
                 <div class="card-footer bg-transparent border-0">
@@ -812,12 +799,15 @@
         const status = statusFilter.value;
         const urgency = urgencyFilter.value;
 
-        return allProblems.filter(problem => {
+        const filtered = allProblems.filter(problem => {
           const matchesSearch = problem.title?.toLowerCase().includes(searchText) || problem.description?.toLowerCase().includes(searchText);
           const matchesStatus = !status || problem.status === status;
           const matchesUrgency = !urgency || problem.urgency === urgency;
           return matchesSearch && matchesStatus && matchesUrgency;
         });
+
+        console.log('Filtros aplicados:', { searchText, status, urgency, filteredCount: filtered.length });
+        return filtered;
       }
 
       // Pagination
@@ -915,7 +905,7 @@
       // Update Status
       window.updateStatus = async (problemId, newStatus) => {
         try {
-          await db.ref(`relatorios_problemas/${problemId}`).update({ status: newStatus });
+          await db.ref(`problems/${problemId}`).update({ status: newStatus });
           console.log('Status atualizado:', problemId, newStatus);
           showToast(translate('statusUpdated'), 'success');
         } catch (error) {
@@ -936,7 +926,7 @@
         const newStatus = document.getElementById('editStatus').value;
 
         try {
-          await db.ref(`relatorios_problemas/${problemId}`).update({ status: newStatus });
+          await db.ref(`problems/${problemId}`).update({ status: newStatus });
           console.log('Problema atualizado:', problemId);
           showToast(translate('statusUpdated'), 'success');
           editModal.hide();
@@ -951,16 +941,14 @@
         try {
           const startDate = new Date();
           startDate.setDate(startDate.getDate() - periodDays);
-          const q = firestore.collection('relatorios_problemas').where('createdAt', '>=', firebase.firestore.Timestamp.fromDate(startDate));
-          const querySnapshot = await q.get();
+          const snapshot = await db.ref('problems').orderByChild('createdAt').startAt(startDate.getTime()).once('value');
+          const problems = snapshot.val() || {};
           const stats = {
             byStatus: { Aguardando: 0, 'Em Andamento': 0, Resolvido: 0 },
             byUrgency: { Baixa: 0, Média: 0, Alta: 0 }
           };
 
-          querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.responsibleId !== userId) return;
+          Object.values(problems).forEach(data => {
             stats.byStatus[data.status] = (stats.byStatus[data.status] || 0) + 1;
             stats.byUrgency[data.urgency] = (stats.byUrgency[data.urgency] || 0) + 1;
           });
@@ -1006,9 +994,9 @@
       }
 
       // Notifications for New Problems
-      db.ref('relatorios_problemas').on('child_added', (snapshot) => {
+      db.ref('problems').on('child_added', (snapshot) => {
         const problem = snapshot.val();
-        if (problem.responsibleId !== userId) return;
+        console.log('Notificação para novo problema:', snapshot.key, problem);
         if (Notification.permission === 'granted') {
           new Notification('Novo Problema', {
             body: `${problem.title || 'Sem título'} - ${problem.description || 'Sem descrição'}`,
