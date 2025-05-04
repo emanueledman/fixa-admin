@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -13,61 +13,70 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+try {
+  const app = initializeApp(firebaseConfig);
+  console.log('Firebase inicializado');
+} catch (error) {
+  console.error('Erro ao inicializar Firebase:', error);
+}
 
-// Elements
-const loginModal = document.getElementById('loginModal');
+const auth = getAuth();
+
+// Elements (Login Page)
 const loginButton = document.getElementById('loginButton');
-const logoutButton = document.getElementById('logoutButton');
 const emailInput = document.getElementById('emailInput');
 const passwordInput = document.getElementById('passwordInput');
 const loginError = document.getElementById('loginError');
-const sidebar = document.getElementById('sidebar');
-const mainContent = document.getElementById('mainContent');
 
-// Show login modal on page load
-document.addEventListener('DOMContentLoaded', () => {
-  loginModal.classList.remove('hidden');
-});
+// Elements (Main Page)
+const logoutButton = document.getElementById('logoutButton');
 
 // Login
-loginButton.addEventListener('click', () => {
-  console.log('Botão de login clicado');
-  const email = emailInput.value.trim();
-  const password = passwordInput.value.trim();
+if (loginButton) {
+  loginButton.addEventListener('click', () => {
+    console.log('Botão de login clicado');
+    const email = emailInput.value.trim();
+    const password = passwordInput.value.trim();
 
-  if (!email || !password) {
-    loginError.textContent = 'Por favor, preencha email e senha.';
-    loginError.classList.remove('hidden');
-    return;
-  }
-
-  signInWithEmailAndPassword(auth, email, password)
-    .then((userCredential) => {
-      console.log('Login bem-sucedido:', userCredential.user.email);
-      loginModal.classList.add('hidden');
-      sidebar.classList.remove('hidden');
-      mainContent.classList.remove('hidden');
-      loginError.classList.add('hidden');
-    })
-    .catch((error) => {
-      console.error('Erro de login:', error.code, error.message);
-      loginError.textContent = `Erro de login: ${error.message}`;
+    if (!email || !password) {
+      loginError.textContent = 'Preencha email e senha.';
       loginError.classList.remove('hidden');
-    });
-});
+      return;
+    }
+
+    signInWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        console.log('Login OK:', userCredential.user.email);
+        window.location.href = '/index.html';
+      })
+      .catch((error) => {
+        console.error('Erro de login:', error.code, error.message);
+        loginError.textContent = `Erro: ${error.message}`;
+        loginError.classList.remove('hidden');
+      });
+  });
+}
 
 // Logout
-logoutButton.addEventListener('click', () => {
-  signOut(auth).then(() => {
-    sidebar.classList.add('hidden');
-    mainContent.classList.add('hidden');
-    loginModal.classList.remove('hidden');
-    document.getElementById('notificationStatus').textContent = '';
-  }).catch((error) => {
-    alert('Erro ao sair: ' + error.message);
+if (logoutButton) {
+  logoutButton.addEventListener('click', () => {
+    signOut(auth).then(() => {
+      window.location.href = '/login.html';
+    }).catch((error) => {
+      alert('Erro ao sair: ' + error.message);
+    });
   });
+}
+
+// Protect Routes
+onAuthStateChanged(auth, (user) => {
+  console.log('Estado de auth:', user ? 'Logado' : 'Deslogado');
+  const isLoginPage = window.location.pathname === '/login.html';
+  if (!user && !isLoginPage) {
+    window.location.href = '/login.html';
+  } else if (user && isLoginPage) {
+    window.location.href = '/index.html';
+  }
 });
 
 export { auth };
