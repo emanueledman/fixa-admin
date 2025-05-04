@@ -13,34 +13,71 @@
   <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="/assets/css/styles.css">
 </head>
-<body class="bg-gray-100 min-h-screen flex">
-  <div class="w-64 bg-gray-900 text-white h-screen p-6 fixed">
-    <h1 class="text-2xl font-bold mb-8">Facilita</h1>
+<body class="bg-gray-50 min-h-screen flex font-sans">
+  <!-- Sidebar -->
+  <div id="sidebar" class="w-64 bg-gray-800 text-white h-screen p-6 fixed transition-all duration-300 ease-in-out transform lg:translate-x-0 -translate-x-full lg:static">
+    <div class="flex items-center justify-between mb-8">
+      <h1 class="text-2xl font-bold">Facilita</h1>
+      <button id="sidebarToggle" class="lg:hidden text-white focus:outline-none">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
     <nav>
-      <a href="#" class="flex items-center p-2 rounded hover:bg-gray-700">
-        <i class="fas fa-home mr-2"></i> Dashboard
+      <a href="#" class="flex items-center p-3 rounded-lg hover:bg-gray-700 transition">
+        <i class="fas fa-home mr-3"></i> Dashboard
       </a>
-      <a href="#" class="flex items-center p-2 rounded hover:bg-gray-700">
-        <i class="fas fa-exclamation-circle mr-2"></i> Problemas
+      <a href="#" class="flex items-center p-3 rounded-lg hover:bg-gray-700 transition">
+        <i class="fas fa-exclamation-circle mr-3"></i> Problemas
       </a>
-      <button id="logoutButton" class="flex items-center p-2 rounded hover:bg-gray-700 w-full text-left mt-4">
-        <i class="fas fa-sign-out-alt mr-2"></i> Sair
+      <button id="logoutButton" class="flex items-center p-3 rounded-lg hover:bg-gray-700 w-full text-left mt-4">
+        <i class="fas fa-sign-out-alt mr-3"></i> Sair
       </button>
     </nav>
   </div>
-  <div class="flex-1 p-8 ml-64">
-    <div class="max-w-7xl mx-auto">
-      <div class="flex justify-between items-center mb-8">
+
+  <!-- Main Content -->
+  <div class="flex-1 p-6 lg:ml-64">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+      <div class="flex items-center">
+        <button id="sidebarOpen" class="lg:hidden text-gray-600 mr-4 focus:outline-none">
+          <i class="fas fa-bars text-2xl"></i>
+        </button>
         <h1 class="text-3xl font-bold text-gray-800">Problemas Reportados</h1>
+      </div>
+      <div class="flex items-center space-x-4">
+        <input id="searchInput" type="text" placeholder="Buscar problemas..." class="border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <select id="statusFilter" class="border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Filtrar por status</option>
+          <option value="Aguardando">Aguardando</option>
+          <option value="Em Andamento">Em Andamento</option>
+          <option value="Resolvido">Resolvido</option>
+        </select>
         <div id="notificationStatus" class="text-green-600"></div>
       </div>
-      <div id="problemsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
     </div>
+
+    <!-- Problems Grid -->
+    <div id="problemsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
   </div>
+
   <script src="/auth.js" type="module"></script>
   <script src="/app.js" type="module"></script>
   <script>
     console.log('index.html carregado');
+
+    // Sidebar Toggle
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOpen = document.getElementById('sidebarOpen');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+
+    sidebarOpen?.addEventListener('click', () => {
+      sidebar.classList.remove('-translate-x-full');
+    });
+
+    sidebarToggle?.addEventListener('click', () => {
+      sidebar.classList.add('-translate-x-full');
+    });
   </script>
 </body>
 </html>
