@@ -25,7 +25,7 @@ function requestNotificationPermission() {
   messaging.requestPermission()
     .then(() => {
       console.log('Permissão de notificações OK');
-      return getToken(messaging, { vapidKey: 'SUA_VAPID_KEY' }); // Substitua pelo VAPID key
+      return getToken(messaging, { vapidKey: 'BKnyjZ4OaEOqoOBovd2bu4f-SwrN6WDW6lkSwkd4BQj8RCY5xxQtWFnBSTRWgOksECGYLbVSl-bpJB-pq3yzkkk' }); // Substitua pelo VAPID key
     })
     .then((token) => {
       document.getElementById('notificationStatus').textContent = 'Notificações ativas';
@@ -37,7 +37,7 @@ function requestNotificationPermission() {
 }
 
 // Admin Panel
-function initializeAdminPanel() {
+function initializeAdminPanel(userId) {
   const problemsRef = ref(db, 'problems');
   const problemsGrid = document.getElementById('problemsGrid');
 
@@ -56,6 +56,9 @@ function initializeAdminPanel() {
     }
 
     for (const [problemId, problem] of Object.entries(problems)) {
+      if (problem.responsibleId !== userId) {
+        continue; // Filtra apenas problemas do usuário logado
+      }
       const responsibleName = await getResponsibleName(problem.responsibleId);
       const createdAt = problem.createdAt ? new Date(problem.createdAt).toLocaleString('pt-BR') : 'Sem data';
       const card = document.createElement('div');
@@ -69,6 +72,7 @@ function initializeAdminPanel() {
         <p class="text-gray-600 mb-2"><strong>Urgência:</strong> ${problem.urgency || 'Sem urgência'}</p>
         <p class="text-gray-600 mb-2"><strong>Responsável:</strong> ${responsibleName}</p>
         <p class="text-gray-600 mb-2"><strong>Status:</strong> ${problem.status || 'Sem status'}</p>
+        <p class="text-gray-600 mb-2"><strong>Sugestão:</strong> ${problem.suggestion || 'Sem sugestão'}</p>
         <p class="text-gray-600 mb-4"><strong>Criado em:</strong> ${createdAt}</p>
         <div class="mb-4">
           ${problem.imageUrl ? `<a href="${problem.imageUrl}" target="_blank"><img src="${problem.imageUrl}" alt="Imagem do problema" class="w-32 h-32 object-cover rounded"></a>` : '<p>Sem imagem</p>'}
@@ -87,6 +91,7 @@ function initializeAdminPanel() {
   onValue(ref(db, 'problems'), (snapshot) => {
     snapshot.forEach((childSnapshot) => {
       const problem = childSnapshot.val();
+      if (problem.responsibleId !== userId) return;
       if (Notification.permission === 'granted') {
         new Notification('Novo Problema', {
           body: `${problem.title} - ${problem.description}`,
@@ -118,9 +123,15 @@ function updateStatus(problemId, newStatus) {
 }
 
 // Initialize
-auth.onAuthStateChanged((user) => {
+auth.onAuthStateChanged(async (user) => {
   if (user && window.location.pathname === '/index.html') {
-    initializeAdminPanel();
-    requestNotificationPermission();
+    const isResponsible = await isUserResponsible(user.uid);
+    if (isResponsible) {
+      initializeAdminPanel(user.uid);
+      requestNotificationPermission();
+    } else {
+      await signOut(auth);
+      window.location.href = '/login.html';
+    }
   }
 });

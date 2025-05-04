@@ -1,5 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -21,6 +22,22 @@ try {
 }
 
 const auth = getAuth();
+const firestore = getFirestore();
+
+// Check if user is responsible
+async function isUserResponsible(uid) {
+  try {
+    const userDoc = await getDoc(doc(firestore, 'usuarios', uid));
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      return userData.isResponsible === true && userData.municipality;
+    }
+    return false;
+  } catch (error) {
+    console.error('Erro ao verificar usuário responsável:', error);
+    return false;
+  }
+}
 
 // Elements (Login Page)
 const loginButton = document.getElementById('loginButton');
@@ -33,7 +50,7 @@ const logoutButton = document.getElementById('logoutButton');
 
 // Login
 if (loginButton) {
-  loginButton.addEventListener('click', () => {
+  loginButton.addEventListener('click', async () => {
     console.log('Botão de login clicado');
     const email = emailInput.value.trim();
     const password = passwordInput.value.trim();
@@ -44,16 +61,23 @@ if (loginButton) {
       return;
     }
 
-    signInWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
-        console.log('Login OK:', userCredential.user.email);
-        window.location.href = '/index.html';
-      })
-      .catch((error) => {
-        console.error('Erro de login:', error.code, error.message);
-        loginError.textContent = `Erro: ${error.message}`;
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      console.log('Login OK:', user.email, 'UID:', user.uid);
+      const isResponsible = await isUserResponsible(user.uid);
+      if (!isResponsible) {
+        await signOut(auth);
+        loginError.textContent = 'Acesso negado: Apenas responsáveis por municípios podem acessar.';
         loginError.classList.remove('hidden');
-      });
+        return;
+      }
+      window.location.href = '/index.html';
+    } catch (error) {
+      console.error('Erro de login:', error.code, error.message);
+      loginError.textContent = `Erro: ${error.message}`;
+      loginError.classList.remove('hidden');
+    }
   });
 }
 
@@ -69,13 +93,19 @@ if (logoutButton) {
 }
 
 // Protect Routes
-onAuthStateChanged(auth, (user) => {
-  console.log('Estado de auth:', user ? 'Logado' : 'Deslogado');
+onAuthStateChanged(auth, async (user) => {
+  console.log('Estado de auth:', user ? `Logado (UID: ${user.uid})` : 'Deslogado');
   const isLoginPage = window.location.pathname === '/login.html';
   if (!user && !isLoginPage) {
     window.location.href = '/login.html';
-  } else if (user && isLoginPage) {
-    window.location.href = '/index.html';
+  } else if (user) {
+    const isResponsible = await isUserResponsible(user.uid);
+    if (!isResponsible) {
+      await signOut(auth);
+      window.location.href = '/login.html';
+    } else if (isLoginPage) {
+      window.location.href = '/index.html';
+    }
   }
 });
 
