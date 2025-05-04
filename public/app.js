@@ -2,11 +2,49 @@ import { getDatabase, ref, onValue, update } from 'https://www.gstatic.com/fireb
 import { getFirestore, doc, getDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { getMessaging, getToken } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js';
 import { auth } from '/auth.js';
+import { translate, formatDate, showToast } from '/utils.js';
 
 // Firebase Services
 const db = getDatabase();
 const firestore = getFirestore();
 const messaging = getMessaging();
+
+// Configuration
+const ITEMS_PER_PAGE = 6;
+const RETRY_ATTEMPTS = 3;
+const RETRY_DELAY = 1000;
+
+// State
+let currentPage = 1;
+let allProblems = [];
+let currentLang = 'pt-BR';
+let editModal = null;
+
+// Translations
+const translations = {
+  'pt-BR': {
+    noProblems: 'Nenhum problema encontrado',
+    noProblemsAssigned: 'Nenhum problema atribuído a você',
+    errorLoading: 'Erro ao carregar problemas',
+    errorReports: 'Erro ao carregar relatórios',
+    statusUpdated: 'Status atualizado!',
+    problemUpdated: 'Problema atualizado com sucesso!',
+    errorUpdate: 'Erro ao atualizar: ',
+    notificationsActive: 'Notificações ativas',
+    notificationsDisabled: 'Notificações desativadas'
+  },
+  'en-US': {
+    noProblems: 'No problems found',
+    noProblemsAssigned: 'No problems assigned to you',
+    errorLoading: 'Error loading problems',
+    errorReports: 'Error loading reports',
+    statusUpdated: 'Status updated!',
+    problemUpdated: 'Problem updated successfully!',
+    errorUpdate: 'Error updating: ',
+    notificationsActive: 'Notifications active',
+    notificationsDisabled: 'Notifications disabled'
+  }
+};
 
 // Service Worker
 if ('serviceWorker' in navigator) {
@@ -17,27 +55,33 @@ if ('serviceWorker' in navigator) {
     })
     .catch((error) => {
       console.error('Erro ao registrar Service Worker:', error);
+      showToast('Erro ao configurar notificações', 'danger');
     });
 }
 
 // Notifications
-function requestNotificationPermission() {
-  Notification.requestPermission()
-    .then((permission) => {
+async function requestNotificationPermission() {
+  for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
+    try {
+      const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         console.log('Permissão de notificações concedida');
-        return getToken(messaging, { vapidKey: 'BKnyjZ4OaEOqoOBovd2bu4f-SwrN6WDW6lkSwkd4BQj8RCY5xxQtWFnBSTRWgOksECGYLbVSl-bpJB-pq3yzkkk' });
+        const token = await getToken(messaging, { vapidKey: 'BKnyjZ4OaEOqoOBovd2bu4f-SwrN6WDW6lkSwkd4BQj8RCY5xxQtWFnBSTRWgOksECGYLbVSl-bpJB-pq3yzkkk' });
+        document.getElementById('notificationStatus').textContent = translate('notificationsActive');
+        console.log('Token de notificação:', token);
+        return;
       }
       throw new Error('Permissão de notificações negada');
-    })
-    .then((token) => {
-      document.getElementById('notificationStatus').textContent = 'Notificações ativas';
-      console.log('Token de notificação:', token);
-    })
-    .catch((error) => {
-      console.error('Erro ao configurar notificações:', error);
-      document.getElementById('notificationStatus').textContent = 'Notificações desativadas';
-    });
+    } catch (error) {
+      console.error(`Tentativa ${attempt} falhou:`, error);
+      if (attempt < RETRY_ATTEMPTS) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      } else {
+        document.getElementById('notificationStatus').textContent = translate('notificationsDisabled');
+        showToast('Notificações desativadas', 'warning');
+      }
+    }
+  }
 }
 
 // Admin Panel
@@ -46,97 +90,324 @@ function initializeAdminPanel(userId) {
   const problemsGrid = document.getElementById('problemsGrid');
   const searchInput = document.getElementById('searchInput');
   const statusFilter = document.getElementById('statusFilter');
-  const reportsLink = document.getElementById('reportsLink');
-  const reportsSection = document.getElementById('reportsSection');
-  const pageTitle = document.getElementById('pageTitle');
-  let currentProblemId = null;
+  const urgencyFilter = document.getElementById('urgencyFilter');
+  const clearFilters = document.getElementById('clearFilters');
+  const sectionLinks = document.querySelectorAll('.nav-link[data-section]');
+  const sections = document.querySelectorAll('.section');
+  const langLinks = document.querySelectorAll('[data-lang]');
+  editModal = new bootstrap.Modal(document.getElementById('editModal'));
 
-  if (!problemsGrid || !reportsSection) {
-    console.error('Elementos do painel não encontrados!');
+  if (!problemsGrid) {
+    console.error('Grid de problemas não encontrado!');
+    showToast('Erro na inicialização do painel', 'danger');
     return;
   }
 
   // Load Problems
-  onValue(problemsRef, async (snapshot) => {
+  onValue(problemsRef, (snapshot) => {
     console.log('Snapshot recebido:', snapshot.exists());
     const problems = snapshot.val();
-    problemsGrid.innerHTML = '';
+    allProblems = [];
 
     if (!problems) {
       console.warn('Nenhum problema encontrado no banco');
-      problemsGrid.innerHTML = '<p class="text-center col-span-full text-gray-600">Nenhum problema encontrado</p>';
+      problemsGrid.innerHTML = `<div class="col-12"><p class="text-center text-muted">${translate('noProblems')}</p></div>`;
+      renderPagination();
       return;
     }
 
-    let filteredProblems = Object.entries(problems).filter(([_, problem]) => {
+    allProblems = Object.entries(problems).filter(([_, problem]) => {
       console.log('Verificando problema:', { id: problem.responsibleId, expected: userId });
       return problem.responsibleId === userId;
-    });
+    }).map(([id, problem]) => ({ id, ...problem }));
 
-    console.log('Problemas filtrados:', filteredProblems);
+    console.log('Problemas filtrados:', allProblems);
 
-    if (filteredProblems.length === 0) {
+    if (allProblems.length === 0) {
       console.warn('Nenhum problema encontrado para responsibleId:', userId);
-      problemsGrid.innerHTML = '<p class="text-center col-span-full text-gray-600">Nenhum problema atribuído a você</p>';
+      problemsGrid.innerHTML = `<div class="col-12"><p class="text-center text-muted">${translate('noProblemsAssigned')}</p></div>`;
     }
 
-    // Render Problems
-    for (const [problemId, problem] of filteredProblems) {
+    renderProblems();
+  }, (error) => {
+    console.error('Erro ao ler problemas:', error);
+    problemsGrid.innerHTML = `<div class="col-12"><p class="text-center text-danger">${translate('errorLoading')}</p></div>`;
+    showToast('Erro ao carregar dados', 'danger');
+  });
+
+  // Render Problems
+  function renderProblems() {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    const filteredProblems = filterProblems();
+    const paginatedProblems = filteredProblems.slice(start, end);
+    problemsGrid.innerHTML = '';
+
+    for (const problem of paginatedProblems) {
       try {
-        const responsibleName = await getResponsibleName(problem.responsibleId);
-        const createdAt = problem.createdAt ? new Date(problem.createdAt).toLocaleString('pt-BR') : 'Sem data';
+        const createdAt = problem.createdAt ? formatDate(problem.createdAt) : 'Sem data';
+        const urgencyClass = problem.urgency === 'Alta' ? 'text-danger' : problem.urgency === 'Média' ? 'text-warning' : 'text-success';
         const card = document.createElement('div');
-        card.className = 'bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-1';
+        card.className = 'col';
         card.innerHTML = `
-          <h3 class="text-xl font-semibold text-gray-800 mb-3">${problem.title || 'Sem título'}</h3>
-          <p class="text-gray-600 mb-2"><strong>Descrição:</strong> ${problem.description || 'Sem descrição'}</p>
-          <p class="text-gray-600 mb-2"><strong>Município:</strong> ${problem.municipality || 'Sem município'}</p>
-          <p class="text-gray-600 mb-2"><strong>Bairro:</strong> ${problem.neighborhood || 'Sem bairro'}</p>
-          <p class="text-gray-600 mb-2"><strong>Categoria:</strong> ${problem.category || 'Sem categoria'}</p>
-          <p class="text-gray-600 mb-2"><strong>Urgência:</strong> <span class="${problem.urgency === 'Alta' ? 'text-red-500' : problem.urgency === 'Média' ? 'text-yellow-500' : 'text-green-500'}">${problem.urgency || 'Sem urgência'}</span></p>
-          <p class="text-gray-600 mb-2"><strong>Responsável:</strong> ${responsibleName}</p>
-          <p class="text-gray-600 mb-2"><strong>Status:</strong> ${problem.status || 'Sem status'}</p>
-          <p class="text-gray-600 mb-2"><strong>Sugestão:</strong> ${problem.suggestion || 'Sem sugestão'}</p>
-          <p class="text-gray-600 mb-4"><strong>Criado em:</strong> ${createdAt}</p>
-          <div class="mb-4">
-            ${problem.imageUrl ? `<a href="${problem.imageUrl}" target="_blank"><img src="${problem.imageUrl}" alt="Imagem do problema" class="w-32 h-32 object-cover rounded-lg"></a>` : '<p class="text-gray-500">Sem imagem</p>'}
-          </div>
-          <div class="flex space-x-4">
-            <select onchange="updateStatus('${problemId}', this.value)" class="border p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="Aguardando" ${problem.status === 'Aguardando' ? 'selected' : ''}>Aguardando</option>
-              <option value="Em Andamento" ${problem.status === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option>
-              <option value="Resolvido" ${problem.status === 'Resolvido' ? 'selected' : ''}>Resolvido</option>
-            </select>
-            <button onclick="openEditModal('${problemId}', '${problem.title || ''}', '${problem.description || ''}', '${problem.status || ''}', '${problem.urgency || ''}', '${problem.suggestion || ''}')" class="bg-orange-500 text-white p-2 rounded-lg hover:bg-orange-600">Editar</button>
+          <div class="card h-100 shadow-sm">
+            <div class="card-body">
+              <h5 class="card-title">${problem.title || 'Sem título'}</h5>
+              <p class="card-text"><strong>Descrição:</strong> ${problem.description || 'Sem descrição'}</p>
+              <p class="card-text"><strong>Município:</strong> ${problem.municipality || 'Sem município'}</p>
+              <p class="card-text"><strong>Bairro:</strong> ${problem.neighborhood || 'Sem bairro'}</p>
+              <p class="card-text"><strong>Categoria:</strong> ${problem.category || 'Sem categoria'}</p>
+              <p class="card-text"><strong>Urgência:</strong> <span class="${urgencyClass}">${problem.urgency || 'Sem urgência'}</span></p>
+              <p class="card-text"><strong>Status:</strong> ${problem.status || 'Sem status'}</p>
+              <p class="card-text"><strong>Sugestão:</strong> ${problem.suggestion || 'Sem sugestão'}</p>
+              <p class="card-text"><strong>Criado em:</strong> ${createdAt}</p>
+              ${problem.imageUrl ? `<a href="${problem.imageUrl}" target="_blank"><img src="${problem.imageUrl}" alt="Imagem do problema" class="img-fluid rounded mb-3" style="max-height: 150px;"></a>` : '<p class="text-muted">Sem imagem</p>'}
+            </div>
+            <div class="card-footer bg-transparent border-0">
+              <div class="d-flex gap-2">
+                <select class="form-select" onchange="updateStatus('${problem.id}', this.value)">
+                  <option value="Aguardando" ${problem.status === 'Aguardando' ? 'selected' : ''}>Aguardando</option>
+                  <option value="Em Andamento" ${problem.status === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option>
+                  <option value="Resolvido" ${problem.status === 'Resolvido' ? 'selected' : ''}>Resolvido</option>
+                </select>
+                <button class="btn btn-warning" onclick="openEditModal('${problem.id}', '${problem.title || ''}', '${problem.description || ''}', '${problem.status || ''}', '${problem.urgency || ''}', '${problem.suggestion || ''}', '${problem.imageUrl || ''}')">
+                  <i class="bi bi-pencil"></i> Editar
+                </button>
+              </div>
+            </div>
           </div>
         `;
         problemsGrid.appendChild(card);
       } catch (error) {
-        console.error('Erro ao renderizar problema:', problemId, error);
+        console.error('Erro ao renderizar problema:', problem.id, error);
       }
     }
 
-    // Search and Filter
-    function applyFilters() {
-      const searchText = searchInput.value.toLowerCase();
-      const status = statusFilter.value;
-      const cards = problemsGrid.children;
+    renderPagination();
+  }
 
-      for (const card of cards) {
-        const title = card.querySelector('h3').textContent.toLowerCase();
-        const statusText = card.querySelector('select').value;
-        const matchesSearch = title.includes(searchText);
-        const matchesStatus = !status || statusText === status;
-        card.style.display = matchesSearch && matchesStatus ? 'block' : 'none';
-      }
+  // Filter Problems
+  function filterProblems() {
+    const searchText = searchInput.value.toLowerCase();
+    const status = statusFilter.value;
+    const urgency = urgencyFilter.value;
+
+    return allProblems.filter(problem => {
+      const matchesSearch = problem.title?.toLowerCase().includes(searchText) || problem.description?.toLowerCase().includes(searchText);
+      const matchesStatus = !status || problem.status === status;
+      const matchesUrgency = !urgency || problem.urgency === urgency;
+      return matchesSearch && matchesStatus && matchesUrgency;
+    });
+  }
+
+  // Pagination
+  function renderPagination() {
+    const totalPages = Math.ceil(filterProblems().length / ITEMS_PER_PAGE);
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = '';
+
+    if (totalPages <= 1) return;
+
+    // Previous
+    pagination.innerHTML += `
+      <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+        <a class="page-link" href="#" data-page="${currentPage - 1}">Anterior</a>
+      </li>
+    `;
+
+    // Pages
+    for (let i = 1; i <= totalPages; i++) {
+      pagination.innerHTML += `
+        <li class="page-item ${currentPage === i ? 'active' : ''}">
+          <a class="page-link" href="#" data-page="${i}">${i}</a>
+        </li>
+      `;
     }
 
-    searchInput.addEventListener('input', applyFilters);
-    statusFilter.addEventListener('change', applyFilters);
-  }, (error) => {
-    console.error('Erro ao ler problemas:', error);
-    problemsGrid.innerHTML = '<p class="text-center col-span-full text-red-500">Erro ao carregar problemas</p>';
+    // Next
+    pagination.innerHTML += `
+      <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+        <a class="page-link" href="#" data-page="${currentPage + 1}">Próximo</a>
+      </li>
+    `;
+
+    pagination.querySelectorAll('a[data-page]').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const page = parseInt(e.target.dataset.page);
+        if (page && page !== currentPage) {
+          currentPage = page;
+          renderProblems();
+        }
+      });
+    });
+  }
+
+  // Event Listeners
+  searchInput.addEventListener('input', () => {
+    currentPage = 1;
+    renderProblems();
   });
+
+  statusFilter.addEventListener('change', () => {
+    currentPage = 1;
+    renderProblems();
+  });
+
+  urgencyFilter.addEventListener('change', () => {
+    currentPage = 1;
+    renderProblems();
+  });
+
+  clearFilters.addEventListener('click', () => {
+    searchInput.value = '';
+    statusFilter.value = '';
+    urgencyFilter.value = '';
+    currentPage = 1;
+    renderProblems();
+  });
+
+  // Section Toggle
+  sectionLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const section = link.dataset.section;
+      sections.forEach(s => s.classList.add('d-none'));
+      document.getElementById(`${section}Section`).classList.remove('d-none');
+      sectionLinks.forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+      if (section === 'reports') loadReports(30);
+    });
+  });
+
+  // Language Switch
+  langLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      currentLang = link.dataset.lang;
+      updateLanguage();
+      renderProblems();
+      if (!document.getElementById('reportsSection').classList.contains('d-none')) {
+        loadReports(parseInt(document.getElementById('reportPeriod').value));
+      }
+    });
+  });
+
+  // Update Status
+  window.updateStatus = async (problemId, newStatus) => {
+    try {
+      await update(ref(db, `problems/${problemId}`), { status: newStatus });
+      console.log('Status atualizado:', problemId, newStatus);
+      showToast(translate('statusUpdated'), 'success');
+    } catch (error) {
+      console.error('Erro ao atualizar status:', problemId, error);
+      showToast(`${translate('errorUpdate')} ${error.message}`, 'danger');
+    }
+  };
+
+  // Edit Modal
+  window.openEditModal = (problemId, title, description, status, urgency, suggestion, imageUrl) => {
+    document.getElementById('editTitle').value = title;
+    document.getElementById('editDescription').value = description;
+    document.getElementById('editStatus').value = status;
+    document.getElementById('editUrgency').value = urgency;
+    document.getElementById('editSuggestion').value = suggestion;
+    document.getElementById('editImage').value = imageUrl;
+    const preview = document.getElementById('imagePreview');
+    if (imageUrl) {
+      preview.src = imageUrl;
+      preview.classList.remove('d-none');
+    } else {
+      preview.classList.add('d-none');
+    }
+    document.getElementById('saveEdit').dataset.problemId = problemId;
+    editModal.show();
+  };
+
+  document.getElementById('saveEdit').addEventListener('click', async () => {
+    const problemId = document.getElementById('saveEdit').dataset.problemId;
+    const updates = {
+      title: document.getElementById('editTitle').value.trim(),
+      description: document.getElementById('editDescription').value.trim(),
+      status: document.getElementById('editStatus').value,
+      urgency: document.getElementById('editUrgency').value,
+      suggestion: document.getElementById('editSuggestion').value.trim()
+    };
+
+    if (!updates.title || !updates.description) {
+      showToast('Título e descrição são obrigatórios!', 'warning');
+      return;
+    }
+
+    try {
+      await update(ref(db, `problems/${problemId}`), updates);
+      console.log('Problema atualizado:', problemId);
+      showToast(translate('problemUpdated'), 'success');
+      editModal.hide();
+    } catch (error) {
+      console.error('Erro ao atualizar problema:', error);
+      showToast(`${translate('errorUpdate')} ${error.message}`, 'danger');
+    }
+  });
+
+  // Reports
+  async function loadReports(periodDays) {
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - periodDays);
+      const q = query(collection(firestore, 'relatorios_problemas'), where('createdAt', '>=', startDate.getTime()));
+      const querySnapshot = await getDocs(q);
+      const stats = {
+        byStatus: { Aguardando: 0, 'Em Andamento': 0, Resolvido: 0 },
+        byUrgency: { Baixa: 0, Média: 0, Alta: 0 }
+      };
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.responsibleId !== userId) return;
+        stats.byStatus[data.status] = (stats.byStatus[data.status] || 0) + 1;
+        stats.byUrgency[data.urgency] = (stats.byUrgency[data.urgency] || 0) + 1;
+      });
+
+      // Status Chart
+      const statusCtx = document.getElementById('statusChart').getContext('2d');
+      new Chart(statusCtx, {
+        type: 'pie',
+        data: {
+          labels: Object.keys(stats.byStatus),
+          datasets: [{
+            data: Object.values(stats.byStatus),
+            backgroundColor: ['#ffc107', '#007bff', '#28a745']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'top' } }
+        }
+      });
+
+      // Urgency Chart
+      const urgencyCtx = document.getElementById('urgencyChart').getContext('2d');
+      new Chart(urgencyCtx, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(stats.byUrgency),
+          datasets: [{
+            label: 'Problemas',
+            data: Object.values(stats.byUrgency),
+            backgroundColor: '#dc3545'
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    } catch (error) {
+      console.error('Erro ao carregar relatórios:', error);
+      showToast(translate('errorReports'), 'danger');
+    }
+  }
 
   // Notifications for New Problems
   onValue(ref(db, 'problems'), (snapshot) => {
@@ -152,152 +423,19 @@ function initializeAdminPanel(userId) {
     });
   }, { onlyOnce: false }, (error) => {
     console.error('Erro ao configurar notificações:', error);
+    showToast('Erro nas notificações', 'danger');
   });
 
-  // Reports
-  async function loadReports(periodDays) {
-    try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - periodDays);
-      const q = query(collection(firestore, 'relatorios_problemas'), where('createdAt', '>=', startDate.getTime()));
-      const querySnapshot = await getDocs(q);
-      const stats = {
-        total: 0,
-        byStatus: { Aguardando: 0, 'Em Andamento': 0, Resolvido: 0 },
-        byUrgency: { Baixa: 0, Média: 0, Alta: 0 },
-        byMunicipality: {}
-      };
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.responsibleId !== userId) return;
-        stats.total++;
-        stats.byStatus[data.status] = (stats.byStatus[data.status] || 0) + 1;
-        stats.byUrgency[data.urgency] = (stats.byUrgency[data.urgency] || 0) + 1;
-        stats.byMunicipality[data.municipality] = (stats.byMunicipality[data.municipality] || 0) + 1;
-      });
-
-      const reportStats = document.getElementById('reportStats');
-      reportStats.innerHTML = `
-        <div class="p-4 bg-blue-100 rounded-lg">
-          <h3 class="font-semibold">Total de Problemas</h3>
-          <p class="text-2xl">${stats.total}</p>
-        </div>
-        <div class="p-4 bg-blue-100 rounded-lg">
-          <h3 class="font-semibold">Por Status</h3>
-          <p>Aguardando: ${stats.byStatus.Aguardando}</p>
-          <p>Em Andamento: ${stats.byStatus['Em Andamento']}</p>
-          <p>Resolvido: ${stats.byStatus.Resolvido}</p>
-        </div>
-        <div class="p-4 bg-blue-100 rounded-lg">
-          <h3 class="font-semibold">Por Urgência</h3>
-          <p>Baixa: ${stats.byUrgency.Baixa}</p>
-          <p>Média: ${stats.byUrgency.Média}</p>
-          <p>Alta: ${stats.byUrgency.Alta}</p>
-        </div>
-      `;
-    } catch (error) {
-      console.error('Erro ao carregar relatórios:', error);
-      document.getElementById('reportStats').innerHTML = '<p class="text-red-500">Erro ao carregar relatórios</p>';
-    }
+  // Language Update
+  function updateLanguage() {
+    document.querySelectorAll('[data-i18n]').forEach(element => {
+      element.textContent = translate(element.dataset.i18n);
+    });
   }
 
-  // Edit Modal
-  window.openEditModal = (problemId, title, description, status, urgency, suggestion) => {
-    currentProblemId = problemId;
-    document.getElementById('editTitle').value = title;
-    document.getElementById('editDescription').value = description;
-    document.getElementById('editStatus').value = status;
-    document.getElementById('editUrgency').value = urgency;
-    document.getElementById('editSuggestion').value = suggestion;
-    document.getElementById('editModal').classList.remove('hidden');
-  };
-
-  document.getElementById('cancelEdit').addEventListener('click', () => {
-    document.getElementById('editModal').classList.add('hidden');
-    currentProblemId = null;
-  });
-
-  document.getElementById('saveEdit').addEventListener('click', () => {
-    const updates = {
-      title: document.getElementById('editTitle').value.trim(),
-      description: document.getElementById('editDescription').value.trim(),
-      status: document.getElementById('editStatus').value,
-      urgency: document.getElementById('editUrgency').value,
-      suggestion: document.getElementById('editSuggestion').value.trim()
-    };
-
-    if (!updates.title || !updates.description) {
-      alert('Título e descrição são obrigatórios!');
-      return;
-    }
-
-    update(ref(db, `problems/${currentProblemId}`), updates)
-      .then(() => {
-        console.log('Problema atualizado:', currentProblemId);
-        alert('Problema atualizado com sucesso!');
-        document.getElementById('editModal').classList.add('hidden');
-        currentProblemId = null;
-      })
-      .catch((error) => {
-        console.error('Erro ao atualizar problema:', error);
-        alert('Erro ao atualizar problema: ' + error.message);
-      });
-  });
-
-  // Toggle Sections
-  reportsLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    problemsGrid.classList.add('hidden');
-    reportsSection.classList.remove('hidden');
-    pageTitle.textContent = 'Relatórios';
-    loadReports(30);
-  });
-
-  document.querySelector('a[href="#"].flex.items-center.p-3.rounded-lg.hover\\:bg-blue-800.transition').addEventListener('click', (e) => {
-    e.preventDefault();
-    problemsGrid.classList.remove('hidden');
-    reportsSection.classList.add('hidden');
-    pageTitle.textContent = 'Problemas Reportados';
-  });
-
-  // Report Period
   document.getElementById('reportPeriod').addEventListener('change', (e) => {
     loadReports(parseInt(e.target.value));
   });
-}
-
-// Responsible Name
-async function getResponsibleName(responsibleId) {
-  if (!responsibleId) {
-    console.warn('responsibleId não fornecido');
-    return 'Sem responsável';
-  }
-  try {
-    const docRef = doc(firestore, 'usuarios', responsibleId);
-    const docSnap = await getDoc(docRef);
-    if (!docSnap.exists()) {
-      console.warn('Usuário não encontrado:', responsibleId);
-      return 'Responsável não encontrado';
-    }
-    return docSnap.data().nome || 'Nome não disponível';
-  } catch (error) {
-    console.error('Erro ao buscar responsável:', responsibleId, error);
-    return 'Erro ao carregar responsável';
-  }
-}
-
-// Update Status
-function updateStatus(problemId, newStatus) {
-  update(ref(db, `problems/${problemId}`), { status: newStatus })
-    .then(() => {
-      console.log('Status atualizado:', problemId, newStatus);
-      alert('Status atualizado!');
-    })
-    .catch((error) => {
-      console.error('Erro ao atualizar status:', problemId, error);
-      alert('Erro ao atualizar status: ' + error.message);
-    });
 }
 
 // Initialize
