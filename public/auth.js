@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // Firebase Configuration
@@ -23,6 +23,7 @@ try {
 
 const auth = getAuth();
 const firestore = getFirestore();
+const googleProvider = new GoogleAuthProvider();
 
 // Check if user is responsible
 async function isUserResponsible(uid) {
@@ -41,6 +42,7 @@ async function isUserResponsible(uid) {
 
 // Elements (Login Page)
 const loginButton = document.getElementById('loginButton');
+const googleLoginButton = document.getElementById('googleLoginButton');
 const emailInput = document.getElementById('emailInput');
 const passwordInput = document.getElementById('passwordInput');
 const loginError = document.getElementById('loginError');
@@ -48,10 +50,10 @@ const loginError = document.getElementById('loginError');
 // Elements (Main Page)
 const logoutButton = document.getElementById('logoutButton');
 
-// Login
+// Login with Email/Password
 if (loginButton) {
   loginButton.addEventListener('click', async () => {
-    console.log('Botão de login clicado');
+    console.log('Botão de login com email clicado');
     const email = emailInput.value.trim();
     const password = passwordInput.value.trim();
 
@@ -64,7 +66,7 @@ if (loginButton) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-      console.log('Login OK:', user.email, 'UID:', user.uid);
+      console.log('Login OK (email):', user.email, 'UID:', user.uid);
       const isResponsible = await isUserResponsible(user.uid);
       if (!isResponsible) {
         await signOut(auth);
@@ -74,7 +76,31 @@ if (loginButton) {
       }
       window.location.href = '/index.html';
     } catch (error) {
-      console.error('Erro de login:', error.code, error.message);
+      console.error('Erro de login (email):', error.code, error.message);
+      loginError.textContent = `Erro: ${error.message}`;
+      loginError.classList.remove('hidden');
+    }
+  });
+}
+
+// Login with Google
+if (googleLoginButton) {
+  googleLoginButton.addEventListener('click', async () => {
+    console.log('Botão de login com Google clicado');
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      console.log('Login OK (Google):', user.email, 'UID:', user.uid);
+      const isResponsible = await isUserResponsible(user.uid);
+      if (!isResponsible) {
+        await signOut(auth);
+        loginError.textContent = 'Acesso negado: Apenas responsáveis por municípios podem acessar.';
+        loginError.classList.remove('hidden');
+        return;
+      }
+      window.location.href = '/index.html';
+    } catch (error) {
+      console.error('Erro de login (Google):', error.code, error.message);
       loginError.textContent = `Erro: ${error.message}`;
       loginError.classList.remove('hidden');
     }
