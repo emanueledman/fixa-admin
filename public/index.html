@@ -10,12 +10,6 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js"></script>
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -335,12 +329,32 @@
     </div>
   </div>
 
-  <!-- Scripts -->
+  <!-- Firebase Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js"></script>
+
+  <!-- Main Script -->
   <script type="module">
-    import { getDatabase, ref, onValue, update } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-    import { getFirestore, doc, getDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-    import { getMessaging, getToken } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js';
-    import { auth } from '/auth.js';
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDVtY6ML3j-qrIsAprIJPB5xFFCbcf4UQw",
+      authDomain: "facilita-479b3.firebaseapp.com",
+      databaseURL: "https://facilita-479b3-default-rtdb.firebaseio.com",
+      projectId: "facilita-479b3",
+      storageBucket: "facilita-479b3.firebasestorage.app",
+      messagingSenderId: "385676676886",
+      appId: "1:385676676886:web:hpv5p5d4onvvosgglv5lf4337bv2bojc"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const messaging = firebase.messaging();
+    const db = firebase.database();
+    const firestore = firebase.firestore();
 
     // Configuration
     const ITEMS_PER_PAGE = 6;
@@ -416,7 +430,7 @@
         try {
           const permission = await Notification.requestPermission();
           if (permission === 'granted') {
-            const token = await getToken(messaging, { vapidKey: 'BKnyjZ4OaEOqoOBovd2bu4f-SwrN6WDW6lkSwkd4BQj8RCY5xxQtWFnBSTRWgOksECGYLbVSl-bpJB-pq3yzkkk' });
+            const token = await messaging.getToken({ vapidKey: 'BKnyjZ4OaEOqoOBovd2bu4f-SwrN6WDW6lkSwkd4BQj8RCY5xxQtWFnBSTRWgOksECGYLbVSl-bpJB-pq3yzkkk' });
             document.getElementById('notificationStatus').textContent = translate('notificationsActive');
             return;
           }
@@ -433,10 +447,7 @@
 
     // Admin Panel
     function initializeAdminPanel(userId) {
-      const db = getDatabase();
-      const firestore = getFirestore();
-      const messaging = getMessaging();
-      const problemsRef = ref(db, 'problems');
+      const problemsRef = db.ref('problems');
       const problemsGrid = document.getElementById('problemsGrid');
       const searchInput = document.getElementById('searchInput');
       const statusFilter = document.getElementById('statusFilter');
@@ -481,7 +492,7 @@
       });
 
       // Load Problems
-      onValue(problemsRef, snapshot => {
+      problemsRef.on('value', snapshot => {
         allProblems = [];
         if (!snapshot.exists()) {
           problemsGrid.innerHTML = `<p class="col-span-full text-center text-gray-500">${translate('noProblems')}</p>`;
@@ -490,9 +501,12 @@
           return;
         }
 
-        allProblems = Object.entries(snapshot.val())
-          .filter(([_, problem]) => problem.responsibleId === userId)
-          .map(([id, problem]) => ({ id, ...problem }));
+        snapshot.forEach(childSnapshot => {
+          const problem = childSnapshot.val();
+          if (problem.responsibleId === userId) {
+            allProblems.push({ id: childSnapshot.key, ...problem });
+          }
+        });
 
         if (!allProblems.length) {
           problemsGrid.innerHTML = `<p class="col-span-full text-center text-gray-500">${translate('noProblemsAssigned')}</p>`;
@@ -777,7 +791,7 @@
       // Update Status
       window.updateStatus = async (problemId, newStatus) => {
         try {
-          await update(ref(db, `problems/${problemId}`), { status: newStatus });
+          await db.ref(`problems/${problemId}`).update({ status: newStatus });
           showToast(translate('statusUpdated'), 'success');
         } catch (error) {
           showToast(`${translate('errorUpdate')} ${error.message}`, 'danger');
@@ -819,7 +833,7 @@
         }
 
         try {
-          await update(ref(db, `problems/${problemId}`), updates);
+          await db.ref(`problems/${problemId}`).update(updates);
           showToast(translate('problemUpdated'), 'success');
           editModal.classList.add('hidden');
         } catch (error) {
@@ -835,8 +849,8 @@
         try {
           const startDate = new Date();
           startDate.setDate(startDate.getDate() - periodDays);
-          const q = query(collection(firestore, 'relatorios_problemas'), where('createdAt', '>=', startDate.getTime()));
-          const querySnapshot = await getDocs(q);
+          const q = firestore.collection('relatorios_problemas').where('createdAt', '>=', startDate.getTime());
+          const querySnapshot = await q.get();
           const stats = {
             byStatus: { Aguardando: 0, 'Em Andamento': 0, Resolvido: 0 },
             byUrgency: { Baixa: 0, Média: 0, Alta: 0 }
@@ -911,16 +925,14 @@
       }
 
       // Notifications for New Problems
-      onValue(ref(db, 'problems'), snapshot => {
-        snapshot.forEach(childSnapshot => {
-          const problem = childSnapshot.val();
-          if (problem.responsibleId !== userId || Notification.permission !== 'granted') return;
-          new Notification('Novo Problema', {
-            body: `${problem.title || 'Sem título'} - ${problem.description || 'Sem descrição'}`,
-            icon: '/assets/icons/Icon-192.png'
-          });
+      db.ref('problems').on('child_added', snapshot => {
+        const problem = snapshot.val();
+        if (problem.responsibleId !== userId || Notification.permission !== 'granted') return;
+        new Notification('Novo Problema', {
+          body: `${problem.title || 'Sem título'} - ${problem.description || 'Sem descrição'}`,
+          icon: '/assets/icons/Icon-192.png'
         });
-      }, { onlyOnce: false });
+      });
 
       document.getElementById('reportPeriod').addEventListener('change', e => loadReports(parseInt(e.target.value)));
 
@@ -936,8 +948,8 @@
     auth.onAuthStateChanged(async user => {
       if (user && window.location.pathname === '/index.html') {
         try {
-          const userDoc = await getDoc(doc(getFirestore(), 'usuarios', user.uid));
-          if (userDoc.exists() && userDoc.data().isResponsible) {
+          const userDoc = await firestore.collection('usuarios').doc(user.uid).get();
+          if (userDoc.exists && userDoc.data().isResponsible) {
             initializeAdminPanel(user.uid);
             requestNotificationPermission();
           } else {
@@ -954,7 +966,8 @@
     // Logout
     document.getElementById('logoutButton').addEventListener('click', async () => {
       await auth.signOut();
-      window -webkit-animation: slideInFromLeft 0.5s ease-in-out;
       window.location.href = '/login.html';
     });
   </script>
+</body>
+</html>
