@@ -10,66 +10,38 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js"></script>
   <style>
-    /* Font and base styles */
-    body {
-      font-family: 'Inter', sans-serif;
-    }
-    /* Neumorphism effect */
-    .neumorphic {
-      background: linear-gradient(145deg, #f0f0f0, #e0e0e0);
-      box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.1), -8px -8px 16px rgba(255, 255, 255, 0.9);
-      transition: all 0.3s ease;
-    }
-    [data-theme="dark"] .neumorphic {
-      background: linear-gradient(145deg, #2d3748, #1f2937);
-      box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.3), -8px -8px 16px rgba(255, 255, 255, 0.1);
-    }
-    .neumorphic:hover {
-      transform: translateY(-2px);
-      box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.15), -10px -10px 20px rgba(255, 255, 255, 0.7);
-    }
-    /* Sidebar animation */
+    /* Smooth sidebar transition */
     .sidebar {
-      transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55), width 0.3s ease;
+      transition: transform 0.3s ease-in-out, width 0.3s ease-in-out;
     }
     .sidebar-hidden {
       transform: translateX(-100%);
     }
-    /* Glassmorphism for modal */
+    /* Glassmorphism effect for modal */
     .glassmorphism {
-      background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(12px);
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.2);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     }
     /* Card hover effect */
     .card-hover:hover {
-      transform: translateY(-8px) scale(1.03);
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-    }
-    /* Dynamic background animation */
-    .main-bg {
-      background: linear-gradient(45deg, #e5e7eb, #f3f4f6);
-      animation: gradientShift 15s ease infinite;
-    }
-    [data-theme="dark"] .main-bg {
-      background: linear-gradient(45deg, #1f2937, #374151);
-    }
-    @keyframes gradientShift {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
+      transform: translateY(-10px) scale(1.02);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
     }
     /* Dark mode styles */
     [data-theme="dark"] {
-      background-color: #111827;
+      background-color: #1f2937;
       color: #f3f4f6;
     }
     [data-theme="dark"] .bg-white {
-      background-color: #1f2937;
+      background-color: #374151;
     }
     [data-theme="dark"] .text-gray-600 {
       color: #d1d5db;
@@ -77,197 +49,159 @@
     /* Chart container */
     .chart-container {
       position: relative;
-      height: 320px;
+      height: 300px;
       width: 100%;
     }
     /* Custom scrollbar */
     ::-webkit-scrollbar {
-      width: 10px;
+      width: 8px;
     }
     ::-webkit-scrollbar-track {
       background: #f1f1f1;
     }
     ::-webkit-scrollbar-thumb {
-      background: #4b5563;
-      border-radius: 5px;
+      background: #888;
+      border-radius: 4px;
     }
     ::-webkit-scrollbar-thumb:hover {
-      background: #374151;
-    }
-    /* Micro-animations */
-    .animate-pulse:hover {
-      animation: pulse 0.5s ease-in-out;
-    }
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
-    /* Submenu animation */
-    .submenu {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s ease-in-out;
-    }
-    .submenu-open {
-      max-height: 200px;
+      background: #555;
     }
   </style>
 </head>
-<body class="main-bg font-sans transition-colors duration-500" data-theme="light">
+<body class="bg-gray-100 font-sans transition-colors duration-300" data-theme="light">
   <div class="flex h-screen overflow-hidden">
     <!-- Sidebar -->
-    <div id="sidebar" class="sidebar w-80 bg-gradient-to-b from-gray-900 to-gray-800 text-white flex flex-col p-6 shadow-2xl md:static md:translate-x-0 sidebar-hidden" role="navigation" aria-label="Menu Principal">
-      <div class="flex items-center mb-10">
-        <h2 class="text-3xl font-extrabold tracking-tight">FixABairro</h2>
-        <button id="sidebarToggle" class="md:hidden ml-auto text-white focus:outline-none" aria-label="Fechar Menu">
-          <i class="bi bi-x-lg text-2xl"></i>
+    <div id="sidebar" class="sidebar w-72 bg-gradient-to-b from-gray-800 to-gray-900 text-white flex flex-col p-6 shadow-xl md:static md:translate-x-0 sidebar-hidden">
+      <div class="flex items-center mb-8">
+        <h2 class="text-2xl font-extrabold tracking-tight">FixABairro</h2>
+        <button id="sidebarToggle" class="md:hidden ml-auto text-white focus:outline-none">
+          <i class="bi bi-x-lg text-xl"></i>
         </button>
       </div>
-      <div class="flex items-center mb-6">
-        <img src="https://via.placeholder.com/40" alt="Avatar do Usuário" class="w-10 h-10 rounded-full mr-3">
-        <div>
-          <p class="text-sm font-semibold">Admin</p>
-          <p class="text-xs text-gray-300">admin@fixabairro.com</p>
-        </div>
-      </div>
-      <nav class="flex-1 space-y-3" role="menubar">
-        <a href="#" data-section="dashboard" class="nav-link flex items-center p-4 rounded-xl hover:bg-gray-700 active:bg-gray-600 transition-colors animate-pulse" role="menuitem" aria-current="page">
-          <i class="bi bi-house-door mr-4 text-lg"></i> Dashboard
+      <nav class="flex-1 space-y-2">
+        <a href="#" data-section="dashboard" class="nav-link flex items-center p-3 rounded-lg hover:bg-gray-700 active:bg-gray-600 transition-colors">
+          <i class="bi bi-house-door mr-3"></i> Dashboard
         </a>
-        <div>
-          <a href="#" data-section="problems" class="nav-link flex items-center p-4 rounded-xl hover:bg-gray-700 active:bg-gray-600 transition-colors animate-pulse" role="menuitem" aria-haspopup="true" aria-expanded="false" data-submenu="problemsSubmenu">
-            <i class="bi bi-exclamation-circle mr-4 text-lg"></i> Problemas
-            <i class="bi bi-chevron-down ml-auto"></i>
-          </a>
-          <ul id="problemsSubmenu" class="submenu pl-8 space-y-2">
-            <li><a href="#" data-filter="Aguardando" class="block p-2 hover:text-gray-300 transition-colors">Aguardando</a></li>
-            <li><a href="#" data-filter="Em Andamento" class="block p-2 hover:text-gray-300 transition-colors">Em Andamento</a></li>
-            <li><a href="#" data-filter="Resolvido" class="block p-2 hover:text-gray-300 transition-colors">Resolvido</a></li>
-          </ul>
-        </div>
-        <a href="#" data-section="reports" class="nav-link flex items-center p-4 rounded-xl hover:bg-gray-700 active:bg-gray-600 transition-colors animate-pulse" role="menuitem">
-          <i class="bi bi-bar-chart mr-4 text-lg"></i> Relatórios
+        <a href="#" data-section="problems" class="nav-link flex items-center p-3 rounded-lg hover:bg-gray-700 active:bg-gray-600 transition-colors">
+          <i class="bi bi-exclamation-circle mr-3"></i> Problemas
+        </a>
+        <a href="#" data-section="reports" class="nav-link flex items-center p-3 rounded-lg hover:bg-gray-700 active:bg-gray-600 transition-colors">
+          <i class="bi bi-bar-chart mr-3"></i> Relatórios
         </a>
       </nav>
-      <div class="mt-auto space-y-3">
+      <div class="mt-auto space-y-2">
         <div class="relative">
-          <button id="langDropdown" class="flex items-center p-4 w-full rounded-xl hover:bg-gray-700 transition-colors animate-pulse" aria-label="Selecionar Idioma">
-            <i class="bi bi-globe mr-4 text-lg"></i> Idioma
+          <button id="langDropdown" class="flex items-center p-3 w-full rounded-lg hover:bg-gray-700 transition-colors">
+            <i class="bi bi-globe mr-3"></i> Idioma
           </button>
-          <ul id="langMenu" class="absolute bottom-full left-0 w-full bg-gray-700 rounded-xl shadow-lg hidden z-10">
+          <ul id="langMenu" class="absolute bottom-full left-0 w-full bg-gray-700 rounded-lg shadow-lg hidden">
             <li><a href="#" data-lang="pt-BR" class="block p-3 hover:bg-gray-600 transition-colors">Português</a></li>
             <li><a href="#" data-lang="en-US" class="block p-3 hover:bg-gray-600 transition-colors">English</a></li>
           </ul>
         </div>
-        <button id="themeToggle" class="flex items-center p-4 w-full rounded-xl hover:bg-gray-700 transition-colors animate-pulse" aria-label="Alternar Tema">
-          <i class="bi bi-moon-stars mr-4 text-lg"></i> Alternar Tema
+        <button id="themeToggle" class="flex items-center p-3 w-full rounded-lg hover:bg-gray-700 transition-colors">
+          <i class="bi bi-moon-stars mr-3"></i> Alternar Tema
         </button>
-        <button id="logoutButton" class="flex items-center p-4 w-full rounded-xl hover:bg-gray-700 transition-colors animate-pulse" aria-label="Sair">
-          <i class="bi bi-box-arrow-right mr-4 text-lg"></i> Sair
+        <button id="logoutButton" class="flex items-center p-3 w-full rounded-lg hover:bg-gray-700 transition-colors">
+          <i class="bi bi-box-arrow-right mr-3"></i> Sair
         </button>
       </div>
     </div>
 
     <!-- Main Content -->
     <div class="flex-1 flex flex-col overflow-auto">
-      <header class="bg-white shadow-xl p-5 flex items-center md:hidden">
-        <button id="sidebarOpen" class="text-gray-600 focus:outline-none" aria-label="Abrir Menu">
+      <header class="bg-white shadow-lg p-4 flex items-center md:hidden">
+        <button id="sidebarOpen" class="text-gray-600 focus:outline-none">
           <i class="bi bi-list text-3xl"></i>
         </button>
         <h1 class="ml-4 text-xl font-semibold">Painel Administrativo</h1>
       </header>
-      <main class="p-10">
+      <main class="p-8">
         <!-- Dashboard Section -->
-        <section id="dashboardSection" class="section" role="region" aria-label="Dashboard">
-          <h1 class="text-4xl font-bold mb-10 text-gray-800">Dashboard</h1>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
-            <div class="neumorphic text-gray-800 p-8 rounded-2xl relative card-hover transition-all">
-              <h3 class="text-xl font-semibold">Problemas Pendentes</h3>
-              <p id="pendingCount" class="text-4xl font-bold mt-3">0</p>
-              <i class="bi bi-exclamation-circle text-5xl absolute right-6 top-6 opacity-30"></i>
+        <section id="dashboardSection" class="section">
+          <h1 class="text-3xl font-bold mb-8 text-gray-800">Dashboard</h1>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-gradient-to-r from-blue-500 to-blue-700 text-white p-6 rounded-xl shadow-lg card-hover transition-all">
+              <h3 class="text-lg font-semibold">Problemas Pendentes</h3>
+              <p id="pendingCount" class="text-3xl font-bold mt-2">0</p>
+              <i class="bi bi-exclamation-circle text-4xl absolute right-4 top-4 opacity-50"></i>
             </div>
-            <div class="neumorphic text-gray-800 p-8 rounded-2xl relative card-hover transition-all">
-              <h3 class="text-xl font-semibold">Problemas Resolvidos</h3>
-              <p id="resolvedCount" class="text-4xl font-bold mt-3">0</p>
-              <i class="bi bi-check-circle text-5xl absolute right-6 top-6 opacity-30"></i>
+            <div class="bg-gradient-to-r from-green-500 to-green-700 text-white p-6 rounded-xl shadow-lg card-hover transition-all">
+              <h3 class="text-lg font-semibold">Problemas Resolvidos</h3>
+              <p id="resolvedCount" class="text-3xl font-bold mt-2">0</p>
+              <i class="bi bi-check-circle text-4xl absolute right-4 top-4 opacity-50"></i>
             </div>
-            <div class="neumorphic text-gray-800 p-8 rounded-2xl relative card-hover transition-all">
-              <h3 class="text-xl font-semibold">Urgência Alta</h3>
-              <p id="highUrgencyCount" class="text-4xl font-bold mt-3">0</p>
-              <i class="bi bi-exclamation-triangle text-5xl absolute right-6 top-6 opacity-30"></i>
+            <div class="bg-gradient-to-r from-red-500 to-red-700 text-white p-6 rounded-xl shadow-lg card-hover transition-all">
+              <h3 class="text-lg font-semibold">Urgência Alta</h3>
+              <p id="highUrgencyCount" class="text-3xl font-bold mt-2">0</p>
+              <i class="bi bi-exclamation-triangle text-4xl absolute right-4 top-4 opacity-50"></i>
             </div>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div class="neumorphic p-8 rounded-2xl">
-              <h3 class="text-xl font-semibold mb-6">Problemas por Status</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+              <h3 class="text-lg font-semibold mb-4">Problemas por Status</h3>
               <div class="chart-container">
                 <canvas id="statusChart"></canvas>
               </div>
             </div>
-            <div class="neumorphic p-8 rounded-2xl">
-              <h3 class="text-xl font-semibold mb-6">Problemas por Urgência</h3>
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+              <h3 class="text-lg font-semibold mb-4">Problemas por Urgência</h3>
               <div class="chart-container">
                 <canvas id="urgencyChart"></canvas>
-              </div>
-            </div>
-            <div class="neumorphic p-8 rounded-2xl">
-              <h3 class="text-xl font-semibold mb-6">Distribuição de Categorias</h3>
-              <div class="chart-container">
-                <canvas id="categoryChart"></canvas>
               </div>
             </div>
           </div>
         </section>
 
         <!-- Problems Section -->
-        <section id="problemsSection" class="section hidden" role="region" aria-label="Problemas Reportados">
-          <div class="flex justify-between items-center mb-10">
-            <h1 class="text-4xl font-bold text-gray-800">Problemas Reportados</h1>
-            <span id="notificationStatus" class="px-5 py-2 bg-green-500 text-white rounded-full text-sm font-medium"></span>
+        <section id="problemsSection" class="section hidden">
+          <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Problemas Reportados</h1>
+            <span id="notificationStatus" class="px-4 py-2 bg-green-500 text-white rounded-full text-sm font-medium"></span>
           </div>
-          <div class="neumorphic p-8 rounded-2xl mb-10">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <input id="searchInput" type="text" class="neumorphic rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar por título..." aria-label="Buscar problemas">
-              <select id="statusFilter" class="neumorphic rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Filtrar por status">
+          <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <input id="searchInput" type="text" class="border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar por título...">
+              <select id="statusFilter" class="border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">Todos os Status</option>
                 <option value="Aguardando">Aguardando</option>
                 <option value="Em Andamento">Em Andamento</option>
                 <option value="Resolvido">Resolvido</option>
               </select>
-              <select id="urgencyFilter" class="neumorphic rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Filtrar por urgência">
+              <select id="urgencyFilter" class="border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">Todas as Urgências</option>
                 <option value="Baixa">Baixa</option>
                 <option value="Média">Média</option>
                 <option value="Alta">Alta</option>
               </select>
-              <button id="clearFilters" class="neumorphic text-gray-700 rounded-lg p-4 hover:bg-gray-300 transition-colors" aria-label="Limpar filtros">Limpar</button>
+              <button id="clearFilters" class="bg-gray-200 text-gray-700 rounded-lg p-3 hover:bg-gray-300 transition-colors">Limpar</button>
             </div>
           </div>
-          <div id="problemsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
-          <nav class="mt-10 flex justify-center" aria-label="Paginação">
-            <ul id="pagination" class="flex space-x-3"></ul>
+          <div id="problemsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+          <nav class="mt-8 flex justify-center">
+            <ul id="pagination" class="flex space-x-2"></ul>
           </nav>
         </section>
 
         <!-- Reports Section -->
-        <section id="reportsSection" class="section hidden" role="region" aria-label="Relatórios">
-          <h1 class="text-4xl font-bold mb-10 text-gray-800">Relatórios</h1>
-          <div class="neumorphic p-8 rounded-2xl mb-10">
-            <select id="reportPeriod" class="neumorphic rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Selecionar período do relatório">
+        <section id="reportsSection" class="section hidden">
+          <h1 class="text-3xl font-bold mb-8 text-gray-800">Relatórios</h1>
+          <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+            <select id="reportPeriod" class="border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="30">Último mês</option>
               <option value="90">Últimos 3 meses</option>
               <option value="365">Último ano</option>
             </select>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div class="neumorphic p-8 rounded-2xl">
-              <h3 class="text-xl font-semibold mb-6">Problemas por Status</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+              <h3 class="text-lg font-semibold mb-4">Problemas por Status</h3>
               <div class="chart-container">
                 <canvas id="statusChartReports"></canvas>
               </div>
             </div>
-            <div class="neumorphic p-8 rounded-2xl">
-              <h3 class="text-xl font-semibold mb-6">Problemas por Urgência</h3>
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+              <h3 class="text-lg font-semibold mb-4">Problemas por Urgência</h3>
               <div class="chart-container">
                 <canvas id="urgencyChartReports"></canvas>
               </div>
@@ -279,82 +213,62 @@
   </div>
 
   <!-- Edit Modal -->
-  <div id="editModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <div class="glassmorphism rounded-2xl p-10 w-full max-w-3xl shadow-2xl animate-fade-in">
-      <div class="flex justify-between items-center mb-8">
-        <h3 id="modalTitle" class="text-3xl font-semibold text-gray-800">Editar Problema</h3>
-        <button id="closeModal" class="text-gray-600 hover:text-gray-800 transition-colors" aria-label="Fechar modal">
-          <i class="bi bi-x-lg text-2xl"></i>
+  <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div class="glassmorphism rounded-xl p-8 w-full max-w-2xl shadow-2xl">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-2xl font-semibold text-gray-800">Editar Problema</h3>
+        <button id="closeModal" class="text-gray-600 hover:text-gray-800 transition-colors">
+          <i class="bi bi-x-lg text-xl"></i>
         </button>
       </div>
       <form id="editForm">
-        <div class="mb-6">
+        <div class="mb-4">
           <label for="editTitle" class="block text-sm font-medium text-gray-700">Título</label>
-          <input type="text" id="editTitle" class="w-full neumorphic rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-blue-500" required aria-required="true">
+          <input type="text" id="editTitle" class="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
         </div>
-        <div class="mb-6">
+        <div class="mb-4">
           <label for="editDescription" class="block text-sm font-medium text-gray-700">Descrição</label>
-          <textarea id="editDescription" class="w-full neumorphic rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-blue-500" rows="5" required aria-required="true"></textarea>
+          <textarea id="editDescription" class="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" rows="4" required></textarea>
         </div>
-        <div class="mb-6">
+        <div class="mb-4">
           <label for="editStatus" class="block text-sm font-medium text-gray-700">Status</label>
-          <select id="editStatus" class="w-full neumorphic rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Selecionar status">
+          <select id="editStatus" class="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="Aguardando">Aguardando</option>
             <option value="Em Andamento">Em Andamento</option>
             <option value="Resolvido">Resolvido</option>
           </select>
         </div>
-        <div class="mb-6">
+        <div class="mb-4">
           <label for="editUrgency" class="block text-sm font-medium text-gray-700">Urgência</label>
-          <select id="editUrgency" class="w-full neumorphic rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Selecionar urgência">
+          <select id="editUrgency" class="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="Baixa">Baixa</option>
             <option value="Média">Média</option>
             <option value="Alta">Alta</option>
           </select>
         </div>
-        <div class="mb-6">
+        <div class="mb-4">
           <label for="editSuggestion" class="block text-sm font-medium text-gray-700">Sugestão</label>
-          <input type="text" id="editSuggestion" class="w-full neumorphic rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input type="text" id="editSuggestion" class="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
-        <div class="mb-6">
+        <div class="mb-4">
           <label for="editImage" class="block text-sm font-medium text-gray-700">Imagem</label>
-          <input type="url" id="editImage" class="w-full neumorphic rounded-lg p-4 bg-gray-100" readonly aria-readonly="true">
-          <img id="imagePreview" src="" loading="lazy" class="mt-4 max-h-60 w-full object-cover rounded-xl hidden" alt="Pré-visualização da imagem">
+          <input type="url" id="editImage" class="w-full border rounded-lg p-3 bg-gray-100" readonly>
+          <img id="imagePreview" src="" class="mt-2 max-h-48 w-full object-cover rounded hidden">
         </div>
-        <div class="flex justify-end space-x-4">
-          <button type="button" id="cancelEdit" class="px-6 py-3 neumorphic text-gray-700 rounded-lg hover:bg-gray-300 transition-colors animate-pulse" aria-label="Cancelar">Cancelar</button>
-          <button type="button" id="saveEdit" class="px-6 py-3 neumorphic bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors animate-pulse" aria-label="Salvar">Salvar</button>
+        <div class="flex justify-end space-x-3">
+          <button type="button" id="cancelEdit" class="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">Cancelar</button>
+          <button type="button" id="saveEdit" class="px-5 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">Salvar</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Firebase Scripts -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js"></script>
-
-  <!-- Main Script -->
+  <!-- Scripts -->
   <script type="module">
-    // Firebase Configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyDVtY6ML3j-qrIsAprIJPB5xFFCbcf4UQw",
-      authDomain: "facilita-479b3.firebaseapp.com",
-      databaseURL: "https://facilita-479b3-default-rtdb.firebaseio.com",
-      projectId: "facilita-479b3",
-      storageBucket: "facilita-479b3.firebasestorage.app",
-      messagingSenderId: "385676676886",
-      appId: "1:385676676886:web:hpv5p5d4onvvosgglv5lf4337bv2bojc"
-    };
-
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const messaging = firebase.messaging();
-    const db = firebase.database();
-    const firestore = firebase.firestore();
+    import { getDatabase, ref, onValue, update } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+    import { getFirestore, doc, getDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { getMessaging, getToken } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js';
+    import { auth } from '/auth.js';
 
     // Configuration
     const ITEMS_PER_PAGE = 6;
@@ -405,10 +319,10 @@
 
     function showToast(message, type) {
       const toast = document.createElement('div');
-      toast.className = `fixed bottom-8 right-8 px-8 py-4 text-white rounded-xl shadow-2xl bg-${type === 'danger' ? 'red' : type === 'success' ? 'green' : 'yellow'}-500 animate-slide-in z-50`;
+      toast.className = `fixed bottom-6 right-6 px-6 py-3 text-white rounded-lg shadow-lg bg-${type === 'danger' ? 'red' : type === 'success' ? 'green' : 'yellow'}-500 animate-slide-in`;
       toast.textContent = message;
       document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 4000);
+      setTimeout(() => toast.remove(), 3000);
     }
 
     // Service Worker
@@ -430,7 +344,7 @@
         try {
           const permission = await Notification.requestPermission();
           if (permission === 'granted') {
-            const token = await messaging.getToken({ vapidKey: 'BKnyjZ4OaEOqoOBovd2bu4f-SwrN6WDW6lkSwkd4BQj8RCY5xxQtWFnBSTRWgOksECGYLbVSl-bpJB-pq3yzkkk' });
+            const token = await getToken(messaging, { vapidKey: 'BKnyjZ4OaEOqoOBovd2bu4f-SwrN6WDW6lkSwkd4BQj8RCY5xxQtWFnBSTRWgOksECGYLbVSl-bpJB-pq3yzkkk' });
             document.getElementById('notificationStatus').textContent = translate('notificationsActive');
             return;
           }
@@ -447,7 +361,10 @@
 
     // Admin Panel
     function initializeAdminPanel(userId) {
-      const problemsRef = db.ref('problems');
+      const db = getDatabase();
+      const firestore = getFirestore();
+      const messaging = getMessaging();
+      const problemsRef = ref(db, 'problems');
       const problemsGrid = document.getElementById('problemsGrid');
       const searchInput = document.getElementById('searchInput');
       const statusFilter = document.getElementById('statusFilter');
@@ -463,7 +380,6 @@
       const langDropdown = document.getElementById('langDropdown');
       const langMenu = document.getElementById('langMenu');
       const themeToggle = document.getElementById('themeToggle');
-      const submenuToggles = document.querySelectorAll('[data-submenu]');
 
       // Sidebar Toggle
       sidebarOpen.addEventListener('click', () => sidebar.classList.remove('sidebar-hidden'));
@@ -480,19 +396,8 @@
         updateCharts();
       });
 
-      // Submenu Toggle
-      submenuToggles.forEach(toggle => {
-        toggle.addEventListener('click', e => {
-          e.preventDefault();
-          const submenuId = toggle.dataset.submenu;
-          const submenu = document.getElementById(submenuId);
-          submenu.classList.toggle('submenu-open');
-          toggle.setAttribute('aria-expanded', submenu.classList.contains('submenu-open'));
-        });
-      });
-
       // Load Problems
-      problemsRef.on('value', snapshot => {
+      onValue(problemsRef, snapshot => {
         allProblems = [];
         if (!snapshot.exists()) {
           problemsGrid.innerHTML = `<p class="col-span-full text-center text-gray-500">${translate('noProblems')}</p>`;
@@ -501,12 +406,9 @@
           return;
         }
 
-        snapshot.forEach(childSnapshot => {
-          const problem = childSnapshot.val();
-          if (problem.responsibleId === userId) {
-            allProblems.push({ id: childSnapshot.key, ...problem });
-          }
-        });
+        allProblems = Object.entries(snapshot.val())
+          .filter(([_, problem]) => problem.responsibleId === userId)
+          .map(([id, problem]) => ({ id, ...problem }));
 
         if (!allProblems.length) {
           problemsGrid.innerHTML = `<p class="col-span-full text-center text-gray-500">${translate('noProblemsAssigned')}</p>`;
@@ -531,9 +433,9 @@
           const createdAt = formatDate(problem.createdAt);
           const urgencyClass = problem.urgency === 'Alta' ? 'text-red-500' : problem.urgency === 'Média' ? 'text-yellow-500' : 'text-green-500';
           problemsGrid.innerHTML += `
-            <div class="neumorphic p-8 rounded-2xl card-hover transition-all">
-              <h3 class="text-2xl font-semibold text-gray-800">${problem.title || 'Sem título'}</h3>
-              <p class="text-gray-600 mt-3"><strong>Descrição:</strong> ${problem.description || 'Sem descrição'}</p>
+            <div class="bg-white p-6 rounded-xl shadow-lg card-hover transition-all">
+              <h3 class="text-xl font-semibold text-gray-800">${problem.title || 'Sem título'}</h3>
+              <p class="text-gray-600 mt-2"><strong>Descrição:</strong> ${problem.description || 'Sem descrição'}</p>
               <p class="text-gray-600"><strong>Município:</strong> ${problem.municipality || 'Sem município'}</p>
               <p class="text-gray-600"><strong>Bairro:</strong> ${problem.neighborhood || 'Sem bairro'}</p>
               <p class="text-gray-600"><strong>Categoria:</strong> ${problem.category || 'Sem categoria'}</p>
@@ -541,14 +443,14 @@
               <p class="text-gray-600"><strong>Status:</strong> ${problem.status || 'Sem status'}</p>
               <p class="text-gray-600"><strong>Sugestão:</strong> ${problem.suggestion || 'Sem sugestão'}</p>
               <p class="text-gray-600"><strong>Criado em:</strong> ${createdAt}</p>
-              ${problem.imageUrl ? `<a href="${problem.imageUrl}" target="_blank"><img src="${problem.imageUrl}" loading="lazy" alt="Imagem do problema" class="mt-6 rounded-xl max-h-60 w-full object-cover"></a>` : '<p class="text-gray-500 mt-6">Sem imagem</p>'}
-              <div class="mt-8 flex space-x-4">
-                <select class="neumorphic rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="updateStatus('${problem.id}', this.value)" aria-label="Alterar status">
+              ${problem.imageUrl ? `<a href="${problem.imageUrl}" target="_blank"><img src="${problem.imageUrl}" alt="Imagem do problema" class="mt-4 rounded-lg max-h-48 w-full object-cover"></a>` : '<p class="text-gray-500 mt-4">Sem imagem</p>'}
+              <div class="mt-6 flex space-x-3">
+                <select class="border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="updateStatus('${problem.id}', this.value)">
                   <option value="Aguardando" ${problem.status === 'Aguardando' ? 'selected' : ''}>Aguardando</option>
                   <option value="Em Andamento" ${problem.status === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option>
                   <option value="Resolvido" ${problem.status === 'Resolvido' ? 'selected' : ''}>Resolvido</option>
                 </select>
-                <button class="px-5 py-3 neumorphic bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors animate-pulse" onclick="openEditModal('${problem.id}', '${problem.title || ''}', '${problem.description || ''}', '${problem.status || ''}', '${problem.urgency || ''}', '${problem.suggestion || ''}', '${problem.imageUrl || ''}')" aria-label="Editar problema">
+                <button class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors" onclick="openEditModal('${problem.id}', '${problem.title || ''}', '${problem.description || ''}', '${problem.status || ''}', '${problem.urgency || ''}', '${problem.suggestion || ''}', '${problem.imageUrl || ''}')">
                   <i class="bi bi-pencil mr-2"></i> Editar
                 </button>
               </div>
@@ -582,17 +484,17 @@
         if (totalPages <= 1) return;
 
         pagination.innerHTML += `
-          <li><a href="#" class="px-5 py-3 neumorphic rounded-lg ${currentPage === 1 ? 'bg-gray-300' : 'hover:bg-blue-600 hover:text-white'} transition-colors animate-pulse" data-page="${currentPage - 1}" aria-label="Página anterior">Anterior</a></li>
+          <li><a href="#" class="px-4 py-2 rounded-lg ${currentPage === 1 ? 'bg-gray-300' : 'bg-blue-500 text-white'} hover:bg-blue-600 transition-colors" data-page="${currentPage - 1}">Anterior</a></li>
         `;
 
         for (let i = 1; i <= totalPages; i++) {
           pagination.innerHTML += `
-            <li><a href="#" class="px-5 py-3 neumorphic rounded-lg ${currentPage === i ? 'bg-blue-500 text-white' : 'hover:bg-blue-600 hover:text-white'} transition-colors animate-pulse" data-page="${i}" aria-label="Página ${i}">${i}</a></li>
+            <li><a href="#" class="px-4 py-2 rounded-lg ${currentPage === i ? 'bg-blue-500 text-white' : 'bg-gray-200'} hover:bg-blue-600 hover:text-white transition-colors" data-page="${i}">${i}</a></li>
           `;
         }
 
         pagination.innerHTML += `
-          <li><a href="#" class="px-5 py-3 neumorphic rounded-lg ${currentPage === totalPages ? 'bg-gray-300' : 'hover:bg-blue-600 hover:text-white'} transition-colors animate-pulse" data-page="${currentPage + 1}" aria-label="Próxima página">Próximo</a></li>
+          <li><a href="#" class="px-4 py-2 rounded-lg ${currentPage === totalPages ? 'bg-gray-300' : 'bg-blue-500 text-white'} hover:bg-blue-600 transition-colors" data-page="${currentPage + 1}">Próximo</a></li>
         `;
 
         pagination.querySelectorAll('a[data-page]').forEach(link => {
@@ -625,29 +527,25 @@
       function updateCharts() {
         const stats = {
           byStatus: { Aguardando: 0, 'Em Andamento': 0, Resolvido: 0 },
-          byUrgency: { Baixa: 0, Média: 0, Alta: 0 },
-          byCategory: {}
+          byUrgency: { Baixa: 0, Média: 0, Alta: 0 }
         };
 
         allProblems.forEach(problem => {
           stats.byStatus[problem.status] = (stats.byStatus[problem.status] || 0) + 1;
           stats.byUrgency[problem.urgency] = (stats.byUrgency[problem.urgency] || 0) + 1;
-          stats.byCategory[problem.category] = (stats.byCategory[problem.category] || 0) + 1;
         });
 
         const isDarkMode = document.body.dataset.theme === 'dark';
         const chartColors = {
-          status: ['#f59e0b', '#3b82f6', '#22c55e'],
-          urgency: ['#22c55e', '#f59e0b', '#ef4444'],
-          category: ['#8b5cf6', '#ec4899', '#10b981', '#f97316', '#6b7280'],
-          background: isDarkMode ? '#1f2937' : '#f0f0f0',
+          status: ['#ffc107', '#007bff', '#28a745'],
+          urgency: ['#28a745', '#ffc107', '#dc3545'],
+          background: isDarkMode ? '#374151' : '#ffffff',
           text: isDarkMode ? '#f3f4f6' : '#1f2937'
         };
 
         // Destroy existing charts if they exist
         if (charts.statusChart) charts.statusChart.destroy();
         if (charts.urgencyChart) charts.urgencyChart.destroy();
-        if (charts.categoryChart) charts.categoryChart.destroy();
         if (charts.statusChartReports) charts.statusChartReports.destroy();
         if (charts.urgencyChartReports) charts.urgencyChartReports.destroy();
 
@@ -665,10 +563,9 @@
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: { animateScale: true, animateRotate: true },
             plugins: {
-              legend: { position: 'top', labels: { color: chartColors.text, font: { size: 14 } } },
-              title: { display: true, text: 'Distribuição por Status', color: chartColors.text, font: { size: 16 } }
+              legend: { position: 'top', labels: { color: chartColors.text } },
+              title: { display: true, text: 'Distribuição por Status', color: chartColors.text }
             }
           }
         });
@@ -682,52 +579,19 @@
               label: 'Problemas',
               data: Object.values(stats.byUrgency),
               backgroundColor: chartColors.urgency,
-              borderRadius: 6
+              borderRadius: 4
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: { duration: 1500, easing: 'easeOutQuart' },
             scales: {
-              y: { beginAtZero: true, ticks: { color: chartColors.text, font: { size: 12 } } },
-              x: { ticks: { color: chartColors.text, font: { size: 12 } } }
+              y: { beginAtZero: true, ticks: { color: chartColors.text } },
+              x: { ticks: { color: chartColors.text } }
             },
             plugins: {
               legend: { display: false },
-              title: { display: true, text: 'Distribuição por Urgência', color: chartColors.text, font: { size: 16 } }
-            }
-          }
-        });
-
-        // Category Chart (Dashboard)
-        charts.categoryChart = new Chart(document.getElementById('categoryChart').getContext('2d'), {
-          type: 'radar',
-          data: {
-            labels: Object.keys(stats.byCategory),
-            datasets: [{
-              label: 'Categorias',
-              data: Object.values(stats.byCategory),
-              backgroundColor: 'rgba(139, 92, 246, 0.2)',
-              borderColor: '#8b5cf6',
-              pointBackgroundColor: '#8b5cf6',
-              borderWidth: 2
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: { duration: 2000, easing: 'easeInOutQuad' },
-            scales: {
-              r: {
-                ticks: { color: chartColors.text, backdropColor: 'transparent' },
-                grid: { color: isDarkMode ? '#4b5563' : '#d1d5db' },
-                angleLines: { color: isDarkMode ? '#4b5563' : '#d1d5db' }
-              }
-            },
-            plugins: {
-              legend: { position: 'top', labels: { color: chartColors.text, font: { size: 14 } } },
-              title: { display: true, text: 'Distribuição por Categoria', color: chartColors.text, font: { size: 16 } }
+              title: { display: true, text: 'Distribuição por Urgência', color: chartColors.text }
             }
           }
         });
@@ -743,21 +607,6 @@
         urgencyFilter.value = '';
         currentPage = 1;
         renderProblems();
-      });
-
-      // Submenu Filters
-      document.querySelectorAll('[data-filter]').forEach(link => {
-        link.addEventListener('click', e => {
-          e.preventDefault();
-          statusFilter.value = link.dataset.filter;
-          currentPage = 1;
-          renderProblems();
-          sections.forEach(s => s.classList.add('hidden'));
-          document.getElementById('problemsSection').classList.remove('hidden');
-          sectionLinks.forEach(l => l.classList.remove('active:bg-gray-600'));
-          document.querySelector('[data-section="problems"]').classList.add('active:bg-gray-600');
-          sidebar.classList.add('sidebar-hidden');
-        });
       });
 
       // Section Toggle
@@ -791,7 +640,7 @@
       // Update Status
       window.updateStatus = async (problemId, newStatus) => {
         try {
-          await db.ref(`problems/${problemId}`).update({ status: newStatus });
+          await update(ref(db, `problems/${problemId}`), { status: newStatus });
           showToast(translate('statusUpdated'), 'success');
         } catch (error) {
           showToast(`${translate('errorUpdate')} ${error.message}`, 'danger');
@@ -833,7 +682,7 @@
         }
 
         try {
-          await db.ref(`problems/${problemId}`).update(updates);
+          await update(ref(db, `problems/${problemId}`), updates);
           showToast(translate('problemUpdated'), 'success');
           editModal.classList.add('hidden');
         } catch (error) {
@@ -849,8 +698,8 @@
         try {
           const startDate = new Date();
           startDate.setDate(startDate.getDate() - periodDays);
-          const q = firestore.collection('relatorios_problemas').where('createdAt', '>=', startDate.getTime());
-          const querySnapshot = await q.get();
+          const q = query(collection(firestore, 'relatorios_problemas'), where('createdAt', '>=', startDate.getTime()));
+          const querySnapshot = await getDocs(q);
           const stats = {
             byStatus: { Aguardando: 0, 'Em Andamento': 0, Resolvido: 0 },
             byUrgency: { Baixa: 0, Média: 0, Alta: 0 }
@@ -865,9 +714,9 @@
 
           const isDarkMode = document.body.dataset.theme === 'dark';
           const chartColors = {
-            status: ['#f59e0b', '#3b82f6', '#22c55e'],
-            urgency: ['#22c55e', '#f59e0b', '#ef4444'],
-            background: isDarkMode ? '#1f2937' : '#f0f0f0',
+            status: ['#ffc107', '#007bff', '#28a745'],
+            urgency: ['#28a745', '#ffc107', '#dc3545'],
+            background: isDarkMode ? '#374151' : '#ffffff',
             text: isDarkMode ? '#f3f4f6' : '#1f2937'
           };
 
@@ -885,10 +734,9 @@
             options: {
               responsive: true,
               maintainAspectRatio: false,
-              animation: { animateScale: true, animateRotate: true },
               plugins: {
-                legend: { position: 'top', labels: { color: chartColors.text, font: { size: 14 } } },
-                title: { display: true, text: 'Distribuição por Status', color: chartColors.text, font: { size: 16 } }
+                legend: { position: 'top', labels: { color: chartColors.text } },
+                title: { display: true, text: 'Distribuição por Status', color: chartColors.text }
               }
             }
           });
@@ -902,20 +750,19 @@
                 label: 'Problemas',
                 data: Object.values(stats.byUrgency),
                 backgroundColor: chartColors.urgency,
-                borderRadius: 6
+                borderRadius: 4
               }]
             },
             options: {
               responsive: true,
               maintainAspectRatio: false,
-              animation: { duration: 1500, easing: 'easeOutQuart' },
               scales: {
-                y: { beginAtZero: true, ticks: { color: chartColors.text, font: { size: 12 } } },
-                x: { ticks: { color: chartColors.text, font: { size: 12 } } }
+                y: { beginAtZero: true, ticks: { color: chartColors.text } },
+                x: { ticks: { color: chartColors.text } }
               },
               plugins: {
                 legend: { display: false },
-                title: { display: true, text: 'Distribuição por Urgência', color: chartColors.text, font: { size: 16 } }
+                title: { display: true, text: 'Distribuição por Urgência', color: chartColors.text }
               }
             }
           });
@@ -925,31 +772,26 @@
       }
 
       // Notifications for New Problems
-      db.ref('problems').on('child_added', snapshot => {
-        const problem = snapshot.val();
-        if (problem.responsibleId !== userId || Notification.permission !== 'granted') return;
-        new Notification('Novo Problema', {
-          body: `${problem.title || 'Sem título'} - ${problem.description || 'Sem descrição'}`,
-          icon: '/assets/icons/Icon-192.png'
+      onValue(ref(db, 'problems'), snapshot => {
+        snapshot.forEach(childSnapshot => {
+          const problem = childSnapshot.val();
+          if (problem.responsibleId !== userId || Notification.permission !== 'granted') return;
+          new Notification('Novo Problema', {
+            body: `${problem.title || 'Sem título'} - ${problem.description || 'Sem descrição'}`,
+            icon: '/assets/icons/Icon-192.png'
+          });
         });
-      });
+      }, { onlyOnce: false });
 
       document.getElementById('reportPeriod').addEventListener('change', e => loadReports(parseInt(e.target.value)));
-
-      // Keyboard Navigation
-      document.addEventListener('keydown', e => {
-        if (e.key === 'Escape' && !editModal.classList.contains('hidden')) {
-          editModal.classList.add('hidden');
-        }
-      });
     }
 
     // Initialize
     auth.onAuthStateChanged(async user => {
       if (user && window.location.pathname === '/index.html') {
         try {
-          const userDoc = await firestore.collection('usuarios').doc(user.uid).get();
-          if (userDoc.exists && userDoc.data().isResponsible) {
+          const userDoc = await getDoc(doc(getFirestore(), 'usuarios', user.uid));
+          if (userDoc.exists() && userDoc.data().isResponsible) {
             initializeAdminPanel(user.uid);
             requestNotificationPermission();
           } else {
@@ -969,5 +811,4 @@
       window.location.href = '/login.html';
     });
   </script>
-</body>
 </html>
