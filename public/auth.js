@@ -1,6 +1,9 @@
+// auth.js
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getDatabase } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js'; // Importação adicionada
+import { getMessaging } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js'; // Importação adicionada
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -13,16 +16,19 @@ const firebaseConfig = {
   appId: "1:385676676886:web:hpv5p5d4onvvosgglv5lf4337bv2bojc"
 };
 
-// Initialize Firebase
+// Initialize Firebase App and Services
+let app, auth, firestore, db, messaging;
 try {
-  const app = initializeApp(firebaseConfig);
-  console.log('Firebase inicializado com sucesso');
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  firestore = getFirestore(app);
+  db = getDatabase(app);
+  messaging = getMessaging(app);
+  console.log('Firebase inicializado com sucesso em auth.js');
 } catch (error) {
-  console.error('Erro ao inicializar Firebase:', error);
+  console.error('Erro ao inicializar Firebase em auth.js:', error);
 }
 
-const auth = getAuth();
-const firestore = getFirestore();
 const googleProvider = new GoogleAuthProvider();
 
 // Create or update user document
@@ -35,7 +41,7 @@ async function createOrUpdateUserDoc(user) {
       // Criar novo documento
       await setDoc(userDocRef, {
         email: user.email,
-        emailOrPhone: user.email || '', // Compatibilidade com regras antigas
+        emailOrPhone: user.email || '',
         isResponsible: true, // Definir como responsável por padrão (ajuste conforme necessário)
         municipality: "Belas", // Valor padrão; ajuste conforme necessário
         nome: user.displayName || "Usuário Sem Nome",
@@ -45,13 +51,18 @@ async function createOrUpdateUserDoc(user) {
     } else {
       // Atualizar campos ausentes, se necessário
       const existingData = userDoc.data();
-      if (!existingData.emailOrPhone || !existingData.municipality) {
-        await setDoc(userDocRef, {
-          ...existingData,
-          emailOrPhone: existingData.emailOrPhone || user.email || '',
-          municipality: existingData.municipality || "Belas"
-        }, { merge: true });
-        console.log('Documento do usuário atualizado:', user.uid);
+      // Nota: As regras de verificação podem ser mais complexas aqui. Ex: verificar se isResponsible já é false
+      if (existingData.isResponsible === false) {
+          // Se o usuário não é responsável, não altere o status ou restrinja o acesso.
+          // Este é um ponto importante para a lógica de permissão.
+          console.warn(`Usuário ${user.uid} não é responsável. Mantendo status.`);
+      } else {
+          await setDoc(userDocRef, {
+            ...existingData,
+            emailOrPhone: existingData.emailOrPhone || user.email || '',
+            municipality: existingData.municipality || "Belas"
+          }, { merge: true });
+          console.log('Documento do usuário atualizado:', user.uid);
       }
     }
   } catch (error) {
@@ -65,10 +76,10 @@ async function isUserResponsible(uid) {
     const userDoc = await getDoc(doc(firestore, 'usuarios', uid));
     if (userDoc.exists()) {
       const userData = userDoc.data();
-      console.log('Dados do usuário:', userData);
-      return userData.isResponsible === true; // municipality não é mais obrigatório
+      console.log('Dados do usuário (isUserResponsible):', userData);
+      return userData.isResponsible === true;
     }
-    console.warn('Documento do usuário não existe:', uid);
+    console.warn('Documento do usuário não existe para verificação de responsabilidade:', uid);
     return false;
   } catch (error) {
     console.error('Erro ao verificar usuário responsável:', error);
@@ -76,17 +87,14 @@ async function isUserResponsible(uid) {
   }
 }
 
-// Elements (Login Page)
+// Elements (Login Page) - These elements are typically found in login.html
 const loginButton = document.getElementById('loginButton');
 const googleLoginButton = document.getElementById('googleLoginButton');
 const emailInput = document.getElementById('emailInput');
 const passwordInput = document.getElementById('passwordInput');
 const loginError = document.getElementById('loginError');
 
-// Elements (Main Page)
-const logoutButton = document.getElementById('logoutButton');
-
-// Login with Email/Password
+// Login with Email/Password (only if elements exist, i.e., on login.html)
 if (loginButton) {
   loginButton.addEventListener('click', async () => {
     console.log('Botão de login com email clicado');
@@ -94,8 +102,10 @@ if (loginButton) {
     const password = passwordInput.value.trim();
 
     if (!email || !password) {
-      loginError.textContent = 'Preencha email e senha.';
-      loginError.classList.remove('hidden');
+      if (loginError) {
+        loginError.textContent = 'Preencha email e senha.';
+        loginError.classList.remove('hidden');
+      }
       return;
     }
 
@@ -103,24 +113,28 @@ if (loginButton) {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       console.log('Login OK (email):', user.email, 'UID:', user.uid);
-      await createOrUpdateUserDoc(user); // Criar ou atualizar documento
-      const isResponsible = await isUserResponsible(user.uid);
-      if (!isResponsible) {
-        await signOut(auth);
-        loginError.textContent = 'Acesso negado: Apenas responsáveis podem acessar.';
-        loginError.classList.remove('hidden');
+      await createOrUpdateUserDoc(user); // Criar ou atualizar documento (se necessário, para novos logins)
+      const responsible = await isUserResponsible(user.uid);
+      if (!responsible) {
+        await signOut(auth); // Força logout se não for responsável
+        if (loginError) {
+          loginError.textContent = 'Acesso negado: Apenas responsáveis podem acessar este painel.';
+          loginError.classList.remove('hidden');
+        }
         return;
       }
-      window.location.href = '/index.html';
+      window.location.href = '/index.html'; // Redireciona se for responsável
     } catch (error) {
       console.error('Erro de login (email):', error.code, error.message);
-      loginError.textContent = `Erro: ${error.message}`;
-      loginError.classList.remove('hidden');
+      if (loginError) {
+        loginError.textContent = `Erro: ${error.message}`;
+        loginError.classList.remove('hidden');
+      }
     }
   });
 }
 
-// Login with Google
+// Login with Google (only if elements exist, i.e., on login.html)
 if (googleLoginButton) {
   googleLoginButton.addEventListener('click', async () => {
     console.log('Botão de login com Google clicado');
@@ -129,53 +143,62 @@ if (googleLoginButton) {
       const user = result.user;
       console.log('Login OK (Google):', user.email, 'UID:', user.uid);
       await createOrUpdateUserDoc(user); // Criar ou atualizar documento
-      const isResponsible = await isUserResponsible(user.uid);
-      if (!isResponsible) {
-        await signOut(auth);
-        loginError.textContent = 'Acesso negado: Apenas responsáveis podem acessar.';
-        loginError.classList.remove('hidden');
+      const responsible = await isUserResponsible(user.uid);
+      if (!responsible) {
+        await signOut(auth); // Força logout se não for responsável
+        if (loginError) {
+          loginError.textContent = 'Acesso negado: Apenas responsáveis podem acessar este painel.';
+          loginError.classList.remove('hidden');
+        }
         return;
       }
-      window.location.href = '/index.html';
+      window.location.href = '/index.html'; // Redireciona se for responsável
     } catch (error) {
       console.error('Erro de login (Google):', error.code, error.message);
-      loginError.textContent = `Erro: ${error.message}`;
-      loginError.classList.remove('hidden');
+      if (loginError) {
+        loginError.textContent = `Erro: ${error.message}`;
+        loginError.classList.remove('hidden');
+      }
     }
   });
 }
 
-// Logout
-if (logoutButton) {
-  logoutButton.addEventListener('click', () => {
-    signOut(auth).then(() => {
-      console.log('Logout realizado com sucesso');
-      window.location.href = '/login.html';
-    }).catch((error) => {
-      console.error('Erro ao sair:', error);
-      alert('Erro ao sair: ' + error.message);
-    });
-  });
+// Callback to initialize the admin panel (to be set by index.html)
+let adminPanelInitializerCallback = null;
+export function setAdminPanelInitializer(callback) {
+    adminPanelInitializerCallback = callback;
 }
 
-// Protect Routes
+// Global Auth State Observer (for route protection and panel initialization)
 onAuthStateChanged(auth, async (user) => {
-  console.log('Estado de auth:', user ? `Logado (UID: ${user.uid}, Email: ${user.email})` : 'Deslogado');
+  console.log('Estado de auth em auth.js (Global):', user ? `Logado (UID: ${user.uid}, Email: ${user.email})` : 'Deslogado');
   const isLoginPage = window.location.pathname === '/login.html';
-  if (!user && !isLoginPage) {
-    console.log('Nenhum usuário autenticado. Redirecionando para login.');
-    window.location.href = '/login.html';
-  } else if (user) {
-    const isResponsible = await isUserResponsible(user.uid);
-    if (!isResponsible) {
-      console.warn('Usuário não é responsável. Deslogando:', user.uid);
-      await signOut(auth);
+  const isIndexPage = window.location.pathname === '/index.html';
+
+  if (!user) { // No user is logged in
+    if (!isLoginPage) {
+      console.log('Nenhum usuário autenticado. Redirecionando para login.');
       window.location.href = '/login.html';
-    } else if (isLoginPage) {
-      console.log('Usuário responsável na página de login. Redirecionando para index.');
-      window.location.href = '/index.html';
+    }
+  } else { // A user is logged in
+    const responsible = await isUserResponsible(user.uid);
+    if (!responsible) {
+      console.warn('Usuário não é responsável. Deslogando:', user.uid);
+      await signOut(auth); // Force logout for non-responsible users
+      if (!isLoginPage) { // Redirect to login only if not already there
+        window.location.href = '/login.html';
+      }
+    } else { // User is authenticated AND responsible
+      if (isLoginPage) {
+        console.log('Usuário responsável na página de login. Redirecionando para index.');
+        window.location.href = '/index.html';
+      } else if (isIndexPage && adminPanelInitializerCallback) {
+        console.log('Usuário responsável no index.html. Chamando inicializador do painel admin.');
+        adminPanelInitializerCallback(user.uid); // Call the initializer from index.html
+      }
     }
   }
 });
 
-export { auth };
+// Export Firebase services and functions for use in other modules
+export { auth, db, firestore, messaging, signOut, createOrUpdateUserDoc, isUserResponsible };

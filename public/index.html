@@ -4,8 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel Administrativo - FixABairro</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <style>
     /* Smooth sidebar transition */
@@ -95,6 +98,7 @@
 </head>
 <body class="bg-gray-100 font-sans transition-colors duration-300" data-theme="light">
   <div class="flex h-screen overflow-hidden">
+    <!-- Sidebar -->
     <div id="sidebar" class="sidebar w-72 bg-gradient-to-b from-gray-800 to-gray-900 text-white flex flex-col p-6 shadow-xl md:static md:translate-x-0 sidebar-hidden" role="navigation" aria-label="Menu Principal">
       <div class="flex items-center mb-8">
         <h2 class="text-2xl font-extrabold tracking-tight">FixABairro</h2>
@@ -132,6 +136,7 @@
       </div>
     </div>
 
+    <!-- Main Content -->
     <div class="flex-1 flex flex-col overflow-auto">
       <header class="bg-white shadow-lg p-4 flex items-center md:hidden">
         <button id="sidebarOpen" class="text-gray-600 focus:outline-none" aria-label="Abrir Menu">
@@ -140,6 +145,7 @@
         <h1 class="ml-4 text-xl font-semibold" data-i18n="adminPanel">Painel Administrativo</h1>
       </header>
       <main class="p-8">
+        <!-- Dashboard Section -->
         <section id="dashboardSection" class="section" role="region" aria-label="Dashboard">
           <h1 class="text-3xl font-bold mb-8 text-gray-800" data-i18n="fixabairroAdmin">FIXABAIRRO ADMIN</h1>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -175,6 +181,7 @@
           </div>
         </section>
 
+        <!-- Problems Section -->
         <section id="problemsSection" class="section hidden" role="region" aria-label="Problemas Reportados">
           <div class="flex justify-between items-center mb-8">
             <h1 class="text-3xl font-bold text-gray-800" data-i18n="reportedProblems">Problemas Reportados</h1>
@@ -204,6 +211,7 @@
           </nav>
         </section>
 
+        <!-- Reports Section -->
         <section id="reportsSection" class="section hidden" role="region" aria-label="Relatórios">
           <h1 class="text-3xl font-bold mb-8 text-gray-800" data-i18n="reports">Relatórios</h1>
           <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
@@ -232,6 +240,7 @@
     </div>
   </div>
 
+  <!-- New Resolution Image Modal -->
   <div id="resolutionImageModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden" role="dialog" aria-modal="true" aria-labelledby="resolutionModalTitle">
     <div class="glassmorphism rounded-xl p-8 w-full max-w-lg shadow-2xl">
       <div class="flex justify-between items-center mb-6">
@@ -256,30 +265,15 @@
     </div>
   </div>
 
+  <!-- Scripts -->
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-    import { getDatabase, ref, onValue, update, onChildAdded } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-    import { getFirestore, doc, getDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-    import { getMessaging, getToken } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js';
+    // Import Firebase services and functions from auth.js
+    import { auth, db, firestore, messaging, signOut, setAdminPanelInitializer } from '/auth.js';
+    // Import specific Realtime Database and Firestore functions needed directly
+    import { ref, onValue, update, onChildAdded } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+    import { collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { getToken } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js';
 
-    // Firebase Configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyDVtY6ML3j-qrIsAprIJPB5xFFCbcf4UQw",
-      authDomain: "facilita-479b3.firebaseapp.com",
-      databaseURL: "https://facilita-479b3-default-rtdb.firebaseio.com",
-      projectId: "facilita-479b3",
-      storageBucket: "facilita-479b3.firebasestorage.app",
-      messagingSenderId: "385676676886",
-      appId: "1:385676676886:web:hpv5p5d4onvvosgglv5lf"
-    };
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
-    const firestore = getFirestore(app);
-    const messaging = getMessaging(app);
 
     // Configuration
     const ITEMS_PER_PAGE = 6;
@@ -302,11 +296,11 @@
         errorLoading: 'Erro ao carregar problemas',
         errorReports: 'Erro ao carregar relatórios',
         statusUpdated: 'Status atualizado!',
-        problemUpdated: 'Problema atualizado com sucesso!',
+        problemUpdated: 'Problema atualizado com sucesso!', // Kept for reference but not used anymore
         errorUpdate: 'Erro ao atualizar: ',
         notificationsActive: 'Notificações ativas',
         notificationsDisabled: 'Notificações desativadas',
-        titleRequired: 'Título e descrição são obrigatórios!', // This might not be needed if editing is removed
+        titleRequired: 'Título e descrição são obrigatórios!', // Kept for reference but not used anymore
         noDate: 'Sem data',
         errorNotifications: 'Erro ao configurar notificações',
         newProblem: 'Novo Problema',
@@ -344,7 +338,31 @@
         imageUploadError: 'Erro ao carregar imagem: ',
         cancel: 'Cancelar',
         upload: 'Carregar',
-        errorLogout: 'Erro ao sair: '
+        errorLogout: 'Erro ao sair: ',
+        description: 'Descrição',
+        municipality: 'Município',
+        neighborhood: 'Bairro',
+        category: 'Categoria',
+        urgency: 'Urgência',
+        status: 'Status',
+        suggestion: 'Sugestão',
+        createdAt: 'Criado em',
+        imageBefore: 'Imagem Antes',
+        viewImageBefore: 'Ver imagem do problema',
+        problemImageBefore: 'Imagem do problema (antes)',
+        noImageBefore: 'Sem imagem (antes)',
+        imageAfter: 'Imagem Depois',
+        viewImageAfter: 'Ver imagem de resolução',
+        problemImageAfter: 'Imagem do problema (depois)',
+        noImageAfter: 'Sem imagem (depois)',
+        changeProblemStatus: 'Alterar status do problema',
+        previousPage: 'Página anterior',
+        previous: 'Anterior',
+        page: 'Página',
+        nextPage: 'Próxima página',
+        next: 'Próximo',
+        noTitle: 'Sem título',
+        noDescription: 'Sem descrição'
       },
       'en-US': {
         noProblems: 'No problems found',
@@ -394,7 +412,31 @@
         imageUploadError: 'Error uploading image: ',
         cancel: 'Cancel',
         upload: 'Upload',
-        errorLogout: 'Error logging out: '
+        errorLogout: 'Error logging out: ',
+        description: 'Description',
+        municipality: 'Municipality',
+        neighborhood: 'Neighborhood',
+        category: 'Category',
+        urgency: 'Urgency',
+        status: 'Status',
+        suggestion: 'Suggestion',
+        createdAt: 'Created At',
+        imageBefore: 'Image Before',
+        viewImageBefore: 'View problem image',
+        problemImageBefore: 'Problem Image (Before)',
+        noImageBefore: 'No image (before)',
+        imageAfter: 'Image After',
+        viewImageAfter: 'View resolution image',
+        problemImageAfter: 'Problem Image (After)',
+        noImageAfter: 'No image (after)',
+        changeProblemStatus: 'Change problem status',
+        previousPage: 'Previous page',
+        previous: 'Previous',
+        page: 'Page',
+        nextPage: 'Next page',
+        next: 'Next',
+        noTitle: 'No title',
+        noDescription: 'No description'
       }
     };
 
@@ -559,14 +601,14 @@
           const urgencyClass = problem.urgency === 'Alta' ? 'text-red-500' : problem.urgency === 'Média' ? 'text-yellow-500' : 'text-green-500';
           problemsGrid.innerHTML += `
             <div class="bg-white p-6 rounded-xl shadow-lg card-hover transition-all">
-              <h3 class="text-xl font-semibold text-gray-800">${problem.title || 'Sem título'}</h3>
-              <p class="text-gray-600 mt-2"><strong>${translate('description')}:</strong> ${problem.description || 'Sem descrição'}</p>
-              <p class="text-gray-600"><strong>${translate('municipality')}:</strong> ${problem.location?.municipality || 'Sem município'}</p>
-              <p class="text-gray-600"><strong>${translate('neighborhood')}:</strong> ${problem.location?.neighborhood || 'Sem bairro'}</p>
-              <p class="text-gray-600"><strong>${translate('category')}:</strong> ${problem.category || 'Sem categoria'}</p>
-              <p class="text-gray-600"><strong>${translate('urgency')}:</strong> <span class="${urgencyClass} font-medium">${problem.urgency || 'Sem urgência'}</span></p>
-              <p class="text-gray-600"><strong>${translate('status')}:</strong> ${problem.status || 'Sem status'}</p>
-              <p class="text-gray-600"><strong>${translate('suggestion')}:</strong> ${problem.suggestion || 'Sem sugestão'}</p>
+              <h3 class="text-xl font-semibold text-gray-800">${problem.title || translate('noTitle')}</h3>
+              <p class="text-gray-600 mt-2"><strong>${translate('description')}:</strong> ${problem.description || translate('noDescription')}</p>
+              <p class="text-gray-600"><strong>${translate('municipality')}:</strong> ${problem.location?.municipality || translate('noMunicipality')}</p>
+              <p class="text-gray-600"><strong>${translate('neighborhood')}:</strong> ${problem.location?.neighborhood || translate('noNeighborhood')}</p>
+              <p class="text-gray-600"><strong>${translate('category')}:</strong> ${problem.category || translate('noCategory')}</p>
+              <p class="text-gray-600"><strong>${translate('urgency')}:</strong> <span class="${urgencyClass} font-medium">${problem.urgency || translate('noUrgency')}</span></p>
+              <p class="text-gray-600"><strong>${translate('status')}:</strong> ${problem.status || translate('noStatus')}</p>
+              <p class="text-gray-600"><strong>${translate('suggestion')}:</strong> ${problem.suggestion || translate('noSuggestion')}</p>
               <p class="text-gray-600"><strong>${translate('createdAt')}:</strong> ${createdAt}</p>
 
               ${problem.imageUrlBefore ? `
@@ -684,7 +726,7 @@
         charts.statusChart = new Chart(document.getElementById('statusChart').getContext('2d'), {
           type: 'doughnut',
           data: {
-            labels: Object.keys(stats.byStatus).map(key => translate(key.toLowerCase().replace(/ /g, '')) || key), // Translate labels
+            labels: Object.keys(stats.byStatus).map(key => translate(key.replace(/ /g, '').toLowerCase()) || key), // Translate labels
             datasets: [{
               data: Object.values(stats.byStatus),
               backgroundColor: chartColors.status,
@@ -821,7 +863,7 @@
         }
 
         if (!currentProblemIdForImage) {
-          showToast('Erro: ID do problema não encontrado para upload.', 'danger'); // Translate this!
+          showToast('Erro: ID do problema não encontrado para upload.', 'danger');
           return;
         }
 
@@ -916,7 +958,7 @@
           charts.statusChartReports = new Chart(document.getElementById('statusChartReports').getContext('2d'), {
             type: 'pie',
             data: {
-              labels: Object.keys(stats.byStatus).map(key => translate(key.toLowerCase().replace(/ /g, '')) || key),
+              labels: Object.keys(stats.byStatus).map(key => translate(key.replace(/ /g, '').toLowerCase()) || key),
               datasets: [{
                 data: Object.values(stats.byStatus),
                 backgroundColor: chartColors.status,
@@ -994,22 +1036,30 @@
         });
 
         // Update select option texts
-        const statusFilterOptions = document.getElementById('statusFilter').querySelectorAll('option');
-        statusFilterOptions[0].textContent = translate('allStatuses');
-        statusFilterOptions[1].textContent = translate('pending');
-        statusFilterOptions[2].textContent = translate('inProgress');
-        statusFilterOptions[3].textContent = translate('resolved');
+        const statusFilterOptions = document.getElementById('statusFilter')?.querySelectorAll('option');
+        if (statusFilterOptions) {
+            statusFilterOptions[0].textContent = translate('allStatuses');
+            statusFilterOptions[1].textContent = translate('pending');
+            statusFilterOptions[2].textContent = translate('inProgress');
+            statusFilterOptions[3].textContent = translate('resolved');
+        }
 
-        const urgencyFilterOptions = document.getElementById('urgencyFilter').querySelectorAll('option');
-        urgencyFilterOptions[0].textContent = translate('allUrgencies');
-        urgencyFilterOptions[1].textContent = translate('low');
-        urgencyOptions[2].textContent = translate('medium');
-        urgencyOptions[3].textContent = translate('high');
 
-        const reportPeriodOptions = document.getElementById('reportPeriod').querySelectorAll('option');
-        reportPeriodOptions[0].textContent = translate('lastMonth');
-        reportPeriodOptions[1].textContent = translate('last3Months');
-        reportPeriodOptions[2].textContent = translate('lastYear');
+        const urgencyFilterOptions = document.getElementById('urgencyFilter')?.querySelectorAll('option');
+        if (urgencyFilterOptions) {
+            urgencyFilterOptions[0].textContent = translate('allUrgencies');
+            urgencyFilterOptions[1].textContent = translate('low');
+            urgencyFilterOptions[2].textContent = translate('medium');
+            urgencyFilterOptions[3].textContent = translate('high');
+        }
+
+
+        const reportPeriodOptions = document.getElementById('reportPeriod')?.querySelectorAll('option');
+        if (reportPeriodOptions) {
+            reportPeriodOptions[0].textContent = translate('lastMonth');
+            reportPeriodOptions[1].textContent = translate('last3Months');
+            reportPeriodOptions[2].textContent = translate('lastYear');
+        }
 
         // Re-render problems to update status/urgency dropdowns and image labels
         renderProblems();
@@ -1019,34 +1069,16 @@
       updateLanguage();
     }
 
-    // Initialize Authentication
-    onAuthStateChanged(auth, async user => {
-      if (user && window.location.pathname === '/index.html') {
-        try {
-          const userDoc = await getDoc(doc(firestore, 'usuarios', user.uid));
-          if (userDoc.exists() && userDoc.data().isResponsible) {
-            initializeAdminPanel(user.uid);
-            requestNotificationPermission();
-          } else {
-            console.warn('Usuário não é responsável ou documento não existe:', user.uid);
-            await signOut(auth);
-            window.location.href = '/login.html';
-          }
-        } catch (error) {
-          console.error('Erro ao verificar usuário:', error);
-          await signOut(auth);
-          window.location.href = '/login.html';
-        }
-      } else {
-        console.log('Nenhum usuário autenticado ou página incorreta. Redirecionando para login.');
-        window.location.href = '/login.html';
-      }
+    // Set the initializer callback for auth.js
+    setAdminPanelInitializer((userId) => {
+        initializeAdminPanel(userId);
+        requestNotificationPermission(); // Request notifications after panel init
     });
 
-    // Logout
+    // Logout button handler (specific to index.html's logout button)
     document.getElementById('logoutButton').addEventListener('click', async () => {
       try {
-        await signOut(auth);
+        await signOut(auth); // Use signOut imported from auth.js
         window.location.href = '/login.html';
       } catch (error) {
         showToast(translate('errorLogout') + error.message, 'danger');
