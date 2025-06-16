@@ -1,4 +1,4 @@
-import { getDatabase, ref, onValue, update } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { getDatabase, ref, onValue, update, onChildAdded } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import { getFirestore, doc, getDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { getMessaging, getToken } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js';
 import { auth } from '/auth.js';
@@ -31,7 +31,8 @@ const translations = {
     problemUpdated: 'Problema atualizado com sucesso!',
     errorUpdate: 'Erro ao atualizar: ',
     notificationsActive: 'Notificações ativas',
-    notificationsDisabled: 'Notificações desativadas'
+    notificationsDisabled: 'Notificações desativadas',
+    titleRequired: 'Título e descrição são obrigatórios!'
   },
   'en-US': {
     noProblems: 'No problems found',
@@ -42,7 +43,8 @@ const translations = {
     problemUpdated: 'Problem updated successfully!',
     errorUpdate: 'Error updating: ',
     notificationsActive: 'Notifications active',
-    notificationsDisabled: 'Notifications disabled'
+    notificationsDisabled: 'Notifications disabled',
+    titleRequired: 'Title and description are required!'
   }
 };
 
@@ -95,7 +97,7 @@ function initializeAdminPanel(userId) {
   const sectionLinks = document.querySelectorAll('.nav-link[data-section]');
   const sections = document.querySelectorAll('.section');
   const langLinks = document.querySelectorAll('[data-lang]');
-  editModal = new bootstrap.Modal(document.getElementById('editModal'));
+  editModal = document.getElementById('editModal');
 
   if (!problemsGrid) {
     console.error('Grid de problemas não encontrado!');
@@ -113,6 +115,7 @@ function initializeAdminPanel(userId) {
       console.warn('Nenhum problema encontrado no banco');
       problemsGrid.innerHTML = `<div class="col-12"><p class="text-center text-muted">${translate('noProblems')}</p></div>`;
       renderPagination();
+      updateDashboard();
       return;
     }
 
@@ -129,6 +132,7 @@ function initializeAdminPanel(userId) {
     }
 
     renderProblems();
+    updateDashboard();
   }, (error) => {
     console.error('Erro ao ler problemas:', error);
     problemsGrid.innerHTML = `<div class="col-12"><p class="text-center text-danger">${translate('errorLoading')}</p></div>`;
@@ -208,14 +212,12 @@ function initializeAdminPanel(userId) {
 
     if (totalPages <= 1) return;
 
-    // Previous
     pagination.innerHTML += `
       <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
         <a class="page-link" href="#" data-page="${currentPage - 1}">Anterior</a>
       </li>
     `;
 
-    // Pages
     for (let i = 1; i <= totalPages; i++) {
       pagination.innerHTML += `
         <li class="page-item ${currentPage === i ? 'active' : ''}">
@@ -224,7 +226,6 @@ function initializeAdminPanel(userId) {
       `;
     }
 
-    // Next
     pagination.innerHTML += `
       <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
         <a class="page-link" href="#" data-page="${currentPage + 1}">Próximo</a>
@@ -240,6 +241,89 @@ function initializeAdminPanel(userId) {
           renderProblems();
         }
       });
+    });
+  }
+
+  // Update Dashboard
+  function updateDashboard() {
+    const pendingCount = allProblems.filter(p => p.status === 'Aguardando').length;
+    const resolvedCount = allProblems.filter(p => p.status === 'Resolvido').length;
+    const highUrgencyCount = allProblems.filter(p => p.urgency === 'Alta').length;
+
+    document.getElementById('pendingCount').textContent = pendingCount;
+    document.getElementById('resolvedCount').textContent = resolvedCount;
+    document.getElementById('highUrgencyCount').textContent = highUrgencyCount;
+
+    updateCharts();
+  }
+
+  // Update Charts
+  function updateCharts() {
+    const stats = {
+      byStatus: { Aguardando: 0, 'Em Andamento': 0, Resolvido: 0 },
+      byUrgency: { Baixa: 0, Média: 0, Alta: 0 }
+    };
+
+    allProblems.forEach(problem => {
+      stats.byStatus[problem.status] = (stats.byStatus[problem.status] || 0) + 1;
+      stats.byUrgency[problem.urgency] = (stats.byUrgency[problem.urgency] || 0) + 1;
+    });
+
+    const isDarkMode = document.body.dataset.theme === 'dark';
+    const chartColors = {
+      status: ['#ffc107', '#007bff', '#28a745'],
+      urgency: ['#28a745', '#ffc107', '#dc3545'],
+      background: isDarkMode ? '#374151' : '#ffffff',
+      text: isDarkMode ? '#f3f4f6' : '#1f2937'
+    };
+
+    // Status Chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(stats.byStatus),
+        datasets: [{
+          data: Object.values(stats.byStatus),
+          backgroundColor: chartColors.status,
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { color: chartColors.text, font: { size: 14 } } },
+          title: { display: true, text: translate('statusDistribution') || 'Distribuição por Status', color: chartColors.text, font: { size: 16 } }
+        }
+      }
+    });
+
+    // Urgency Chart
+    const urgencyCtx = document.getElementById('urgencyChart').getContext('2d');
+    new Chart(urgencyCtx, {
+      type: 'bar',
+      data: {
+        labels: Object.keys(stats.byUrgency),
+        datasets: [{
+          label: translate('problems') || 'Problemas',
+          data: Object.values(stats.byUrgency),
+          backgroundColor: chartColors.urgency,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true, ticks: { color: chartColors.text, font: { size: 12 } } },
+          x: { ticks: { color: chartColors.text, font: { size: 12 } } }
+        },
+        plugins: {
+          legend: { display: false },
+          title: { display: true, text: translate('urgencyDistribution') || 'Distribuição por Urgência', color: chartColors.text, font: { size: 16 } }
+        }
+      }
     });
   }
 
@@ -321,7 +405,7 @@ function initializeAdminPanel(userId) {
       preview.classList.add('d-none');
     }
     document.getElementById('saveEdit').dataset.problemId = problemId;
-    editModal.show();
+    editModal.classList.remove('hidden');
   };
 
   document.getElementById('saveEdit').addEventListener('click', async () => {
@@ -335,7 +419,7 @@ function initializeAdminPanel(userId) {
     };
 
     if (!updates.title || !updates.description) {
-      showToast('Título e descrição são obrigatórios!', 'warning');
+      showToast(translate('titleRequired'), 'warning');
       return;
     }
 
@@ -343,12 +427,15 @@ function initializeAdminPanel(userId) {
       await update(ref(db, `problems/${problemId}`), updates);
       console.log('Problema atualizado:', problemId);
       showToast(translate('problemUpdated'), 'success');
-      editModal.hide();
+      editModal.classList.add('hidden');
     } catch (error) {
       console.error('Erro ao atualizar problema:', error);
       showToast(`${translate('errorUpdate')} ${error.message}`, 'danger');
     }
   });
+
+  document.getElementById('closeModal').addEventListener('click', () => editModal.classList.add('hidden'));
+  document.getElementById('cancelEdit').addEventListener('click', () => editModal.classList.add('hidden'));
 
   // Reports
   async function loadReports(periodDays) {
@@ -370,7 +457,7 @@ function initializeAdminPanel(userId) {
       });
 
       // Status Chart
-      const statusCtx = document.getElementById('statusChart').getContext('2d');
+      const statusCtx = document.getElementById('statusChartReports').getContext('2d');
       new Chart(statusCtx, {
         type: 'pie',
         data: {
@@ -387,7 +474,7 @@ function initializeAdminPanel(userId) {
       });
 
       // Urgency Chart
-      const urgencyCtx = document.getElementById('urgencyChart').getContext('2d');
+      const urgencyCtx = document.getElementById('urgencyChartReports').getContext('2d');
       new Chart(urgencyCtx, {
         type: 'bar',
         data: {
@@ -395,7 +482,7 @@ function initializeAdminPanel(userId) {
           datasets: [{
             label: 'Problemas',
             data: Object.values(stats.byUrgency),
-            backgroundColor: '#dc3545'
+            backgroundColor: ['#28a745', '#ffc107', '#dc3545']
           }]
         },
         options: {
@@ -410,20 +497,13 @@ function initializeAdminPanel(userId) {
   }
 
   // Notifications for New Problems
-  onValue(ref(db, 'problems'), (snapshot) => {
-    snapshot.forEach((childSnapshot) => {
-      const problem = childSnapshot.val();
-      if (problem.responsibleId !== userId) return;
-      if (Notification.permission === 'granted') {
-        new Notification('Novo Problema', {
-          body: `${problem.title || 'Sem título'} - ${problem.description || 'Sem descrição'}`,
-          icon: '/assets/icons/Icon-192.png'
-        });
-      }
+  onChildAdded(ref(db, 'problems'), (snapshot) => {
+    const problem = snapshot.val();
+    if (problem.responsibleId !== userId || Notification.permission !== 'granted') return;
+    new Notification(translate('newProblem') || 'Novo Problema', {
+      body: `${problem.title || 'Sem título'} - ${problem.description || 'Sem descrição'}`,
+      icon: '/assets/icons/Icon-192.png'
     });
-  }, { onlyOnce: false }, (error) => {
-    console.error('Erro ao configurar notificações:', error);
-    showToast('Erro nas notificações', 'danger');
   });
 
   // Language Update
@@ -436,26 +516,42 @@ function initializeAdminPanel(userId) {
   document.getElementById('reportPeriod').addEventListener('change', (e) => {
     loadReports(parseInt(e.target.value));
   });
+
+  // Keyboard Navigation
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !editModal.classList.contains('hidden')) {
+      editModal.classList.add('hidden');
+      document.getElementById('closeModal').focus();
+    }
+  });
 }
 
 // Initialize
 auth.onAuthStateChanged(async (user) => {
   if (user && window.location.pathname === '/index.html') {
-    console.log('Inicializando painel para usuário:', user.uid);
+    console.log('Inicializando painel para usuário:', user.uid, 'Email:', user.email);
     try {
       const userDoc = await getDoc(doc(firestore, 'usuarios', user.uid));
+      console.log('Documento do usuário:', {
+        exists: userDoc.exists(),
+        data: userDoc.data()
+      });
       if (userDoc.exists() && userDoc.data().isResponsible) {
+        console.log('Usuário é responsável. Inicializando painel...');
         initializeAdminPanel(user.uid);
         requestNotificationPermission();
       } else {
-        console.warn('Usuário não é responsável:', user.uid);
-        await auth.signOut();
+        console.warn('Usuário não é responsável ou documento não existe:', user.uid);
+        await signOut(auth);
         window.location.href = '/login.html';
       }
     } catch (error) {
       console.error('Erro ao verificar usuário:', error);
-      await auth.signOut();
+      await signOut(auth);
       window.location.href = '/login.html';
     }
+  } else {
+    console.log('Nenhum usuário autenticado ou página incorreta:', user, window.location.pathname);
+    window.location.href = '/login.html';
   }
 });

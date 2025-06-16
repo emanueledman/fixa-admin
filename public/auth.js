@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -16,7 +16,7 @@ const firebaseConfig = {
 // Initialize Firebase
 try {
   const app = initializeApp(firebaseConfig);
-  console.log('Firebase inicializado');
+  console.log('Firebase inicializado com sucesso');
 } catch (error) {
   console.error('Erro ao inicializar Firebase:', error);
 }
@@ -25,14 +25,50 @@ const auth = getAuth();
 const firestore = getFirestore();
 const googleProvider = new GoogleAuthProvider();
 
+// Create or update user document
+async function createOrUpdateUserDoc(user) {
+  try {
+    const userDocRef = doc(firestore, 'usuarios', user.uid);
+    const userDoc = await getDoc(userDocRef);
+    
+    if (!userDoc.exists()) {
+      // Criar novo documento
+      await setDoc(userDocRef, {
+        email: user.email,
+        emailOrPhone: user.email || '', // Compatibilidade com regras antigas
+        isResponsible: true, // Definir como responsável por padrão (ajuste conforme necessário)
+        municipality: "Belas", // Valor padrão; ajuste conforme necessário
+        nome: user.displayName || "Usuário Sem Nome",
+        data_criacao: new Date().getTime()
+      });
+      console.log('Documento do usuário criado:', user.uid);
+    } else {
+      // Atualizar campos ausentes, se necessário
+      const existingData = userDoc.data();
+      if (!existingData.emailOrPhone || !existingData.municipality) {
+        await setDoc(userDocRef, {
+          ...existingData,
+          emailOrPhone: existingData.emailOrPhone || user.email || '',
+          municipality: existingData.municipality || "Belas"
+        }, { merge: true });
+        console.log('Documento do usuário atualizado:', user.uid);
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao criar/atualizar documento do usuário:', error);
+  }
+}
+
 // Check if user is responsible
 async function isUserResponsible(uid) {
   try {
     const userDoc = await getDoc(doc(firestore, 'usuarios', uid));
     if (userDoc.exists()) {
       const userData = userDoc.data();
-      return userData.isResponsible === true && userData.municipality;
+      console.log('Dados do usuário:', userData);
+      return userData.isResponsible === true; // municipality não é mais obrigatório
     }
+    console.warn('Documento do usuário não existe:', uid);
     return false;
   } catch (error) {
     console.error('Erro ao verificar usuário responsável:', error);
@@ -67,10 +103,11 @@ if (loginButton) {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       console.log('Login OK (email):', user.email, 'UID:', user.uid);
+      await createOrUpdateUserDoc(user); // Criar ou atualizar documento
       const isResponsible = await isUserResponsible(user.uid);
       if (!isResponsible) {
         await signOut(auth);
-        loginError.textContent = 'Acesso negado: Apenas responsáveis por municípios podem acessar.';
+        loginError.textContent = 'Acesso negado: Apenas responsáveis podem acessar.';
         loginError.classList.remove('hidden');
         return;
       }
@@ -91,10 +128,11 @@ if (googleLoginButton) {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
       console.log('Login OK (Google):', user.email, 'UID:', user.uid);
+      await createOrUpdateUserDoc(user); // Criar ou atualizar documento
       const isResponsible = await isUserResponsible(user.uid);
       if (!isResponsible) {
         await signOut(auth);
-        loginError.textContent = 'Acesso negado: Apenas responsáveis por municípios podem acessar.';
+        loginError.textContent = 'Acesso negado: Apenas responsáveis podem acessar.';
         loginError.classList.remove('hidden');
         return;
       }
@@ -111,8 +149,10 @@ if (googleLoginButton) {
 if (logoutButton) {
   logoutButton.addEventListener('click', () => {
     signOut(auth).then(() => {
+      console.log('Logout realizado com sucesso');
       window.location.href = '/login.html';
     }).catch((error) => {
+      console.error('Erro ao sair:', error);
       alert('Erro ao sair: ' + error.message);
     });
   });
@@ -120,16 +160,19 @@ if (logoutButton) {
 
 // Protect Routes
 onAuthStateChanged(auth, async (user) => {
-  console.log('Estado de auth:', user ? `Logado (UID: ${user.uid})` : 'Deslogado');
+  console.log('Estado de auth:', user ? `Logado (UID: ${user.uid}, Email: ${user.email})` : 'Deslogado');
   const isLoginPage = window.location.pathname === '/login.html';
   if (!user && !isLoginPage) {
+    console.log('Nenhum usuário autenticado. Redirecionando para login.');
     window.location.href = '/login.html';
   } else if (user) {
     const isResponsible = await isUserResponsible(user.uid);
     if (!isResponsible) {
+      console.warn('Usuário não é responsável. Deslogando:', user.uid);
       await signOut(auth);
       window.location.href = '/login.html';
     } else if (isLoginPage) {
+      console.log('Usuário responsável na página de login. Redirecionando para index.');
       window.location.href = '/index.html';
     }
   }
