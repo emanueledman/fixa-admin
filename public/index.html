@@ -4,18 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel Administrativo - FixABairro</title>
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js"></script>
   <style>
     /* Smooth sidebar transition */
     .sidebar {
@@ -46,6 +37,23 @@
     [data-theme="dark"] .text-gray-600 {
       color: #d1d5db;
     }
+    [data-theme="dark"] .text-gray-800 {
+      color: #f3f4f6;
+    }
+    [data-theme="dark"] .border {
+      border-color: #4b5563;
+    }
+    [data-theme="dark"] select, [data-theme="dark"] input[type="text"], [data-theme="dark"] input[type="file"] {
+      background-color: #4b5563;
+      color: #f3f4f6;
+    }
+    [data-theme="dark"] .bg-gray-200 {
+      background-color: #4b5563;
+      color: #f3f4f6;
+    }
+    [data-theme="dark"] .hover\:bg-gray-300:hover {
+      background-color: #6b7280;
+    }
     /* Chart container */
     .chart-container {
       position: relative;
@@ -59,12 +67,21 @@
     ::-webkit-scrollbar-track {
       background: #f1f1f1;
     }
+    [data-theme="dark"] ::-webkit-scrollbar-track {
+      background: #374151;
+    }
     ::-webkit-scrollbar-thumb {
       background: #888;
       border-radius: 4px;
     }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb {
+      background: #6b7280;
+    }
     ::-webkit-scrollbar-thumb:hover {
       background: #555;
+    }
+    [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+      background: #9ca3af;
     }
     /* Fade-in animation for toast */
     .animate-slide-in {
@@ -78,7 +95,6 @@
 </head>
 <body class="bg-gray-100 font-sans transition-colors duration-300" data-theme="light">
   <div class="flex h-screen overflow-hidden">
-    <!-- Sidebar -->
     <div id="sidebar" class="sidebar w-72 bg-gradient-to-b from-gray-800 to-gray-900 text-white flex flex-col p-6 shadow-xl md:static md:translate-x-0 sidebar-hidden" role="navigation" aria-label="Menu Principal">
       <div class="flex items-center mb-8">
         <h2 class="text-2xl font-extrabold tracking-tight">FixABairro</h2>
@@ -87,20 +103,20 @@
         </button>
       </div>
       <nav class="flex-1 space-y-2" role="menubar">
-        <a href="#" data-section="dashboard" class="nav-link flex items-center p-3 rounded-lg hover:bg-gray-700 active:bg-gray-600 transition-colors" role="menuitem" aria-current="page">
-          <i class="bi bi-house-door mr-3"></i> Dashboard
+        <a href="#" data-section="dashboard" class="nav-link flex items-center p-3 rounded-lg hover:bg-gray-700 bg-gray-600 text-white transition-colors" role="menuitem" aria-current="page">
+          <i class="bi bi-house-door mr-3"></i> <span data-i18n="dashboard">Dashboard</span>
         </a>
-        <a href="#" data-section="problems" class="nav-link flex items-center p-3 rounded-lg hover:bg-gray-700 active:bg-gray-600 transition-colors" role="menuitem">
-          <i class="bi bi-exclamation-circle mr-3"></i> Problemas
+        <a href="#" data-section="problems" class="nav-link flex items-center p-3 rounded-lg hover:bg-gray-700 transition-colors" role="menuitem">
+          <i class="bi bi-exclamation-circle mr-3"></i> <span data-i18n="problems">Problemas</span>
         </a>
-        <a href="#" data-section="reports" class="nav-link flex items-center p-3 rounded-lg hover:bg-gray-700 active:bg-gray-600 transition-colors" role="menuitem">
-          <i class="bi bi-bar-chart mr-3"></i> Relatórios
+        <a href="#" data-section="reports" class="nav-link flex items-center p-3 rounded-lg hover:bg-gray-700 transition-colors" role="menuitem">
+          <i class="bi bi-bar-chart mr-3"></i> <span data-i18n="reports">Relatórios</span>
         </a>
       </nav>
       <div class="mt-auto space-y-2">
         <div class="relative">
           <button id="langDropdown" class="flex items-center p-3 w-full rounded-lg hover:bg-gray-700 transition-colors" aria-label="Selecionar Idioma" aria-haspopup="true" aria-expanded="false">
-            <i class="bi bi-globe mr-3"></i> Idioma
+            <i class="bi bi-globe mr-3"></i> <span data-i18n="language">Idioma</span>
           </button>
           <ul id="langMenu" class="absolute bottom-full left-0 w-full bg-gray-700 rounded-lg shadow-lg hidden" role="menu">
             <li><a href="#" data-lang="pt-BR" class="block p-3 hover:bg-gray-600 transition-colors" role="menuitem">Português</a></li>
@@ -108,52 +124,50 @@
           </ul>
         </div>
         <button id="themeToggle" class="flex items-center p-3 w-full rounded-lg hover:bg-gray-700 transition-colors" aria-label="Alternar Tema">
-          <i class="bi bi-moon-stars mr-3"></i> Alternar Tema
+          <i class="bi bi-moon-stars mr-3"></i> <span data-i18n="toggleTheme">Alternar Tema</span>
         </button>
         <button id="logoutButton" class="flex items-center p-3 w-full rounded-lg hover:bg-gray-700 transition-colors" aria-label="Sair">
-          <i class="bi bi-box-arrow-right mr-3"></i> Sair
+          <i class="bi bi-box-arrow-right mr-3"></i> <span data-i18n="logout">Sair</span>
         </button>
       </div>
     </div>
 
-    <!-- Main Content -->
     <div class="flex-1 flex flex-col overflow-auto">
       <header class="bg-white shadow-lg p-4 flex items-center md:hidden">
         <button id="sidebarOpen" class="text-gray-600 focus:outline-none" aria-label="Abrir Menu">
           <i class="bi bi-list text-3xl"></i>
         </button>
-        <h1 class="ml-4 text-xl font-semibold">Painel Administrativo</h1>
+        <h1 class="ml-4 text-xl font-semibold" data-i18n="adminPanel">Painel Administrativo</h1>
       </header>
       <main class="p-8">
-        <!-- Dashboard Section -->
         <section id="dashboardSection" class="section" role="region" aria-label="Dashboard">
-          <h1 class="text-3xl font-bold mb-8 text-gray-800">FIXABAIRRO ADIMIN</h1>
+          <h1 class="text-3xl font-bold mb-8 text-gray-800" data-i18n="fixabairroAdmin">FIXABAIRRO ADMIN</h1>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div class="bg-gradient-to-r from-blue-500 to-blue-700 text-white p-6 rounded-xl shadow-lg card-hover transition-all relative">
-              <h3 class="text-lg font-semibold">Problemas Pendentes</h3>
+              <h3 class="text-lg font-semibold" data-i18n="pendingProblems">Problemas Pendentes</h3>
               <p id="pendingCount" class="text-3xl font-bold mt-2">0</p>
               <i class="bi bi-exclamation-circle text-4xl absolute right-4 top-4 opacity-50"></i>
             </div>
             <div class="bg-gradient-to-r from-green-500 to-green-700 text-white p-6 rounded-xl shadow-lg card-hover transition-all relative">
-              <h3 class="text-lg font-semibold">Problemas Resolvidos</h3>
+              <h3 class="text-lg font-semibold" data-i18n="resolvedProblems">Problemas Resolvidos</h3>
               <p id="resolvedCount" class="text-3xl font-bold mt-2">0</p>
               <i class="bi bi-check-circle text-4xl absolute right-4 top-4 opacity-50"></i>
             </div>
             <div class="bg-gradient-to-r from-red-500 to-red-700 text-white p-6 rounded-xl shadow-lg card-hover transition-all relative">
-              <h3 class="text-lg font-semibold">Urgência Alta</h3>
+              <h3 class="text-lg font-semibold" data-i18n="highUrgency">Urgência Alta</h3>
               <p id="highUrgencyCount" class="text-3xl font-bold mt-2">0</p>
               <i class="bi bi-exclamation-triangle text-4xl absolute right-4 top-4 opacity-50"></i>
             </div>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="bg-white p-6 rounded-xl shadow-lg">
-              <h3 class="text-lg font-semibold mb-4">Problemas por Status</h3>
+              <h3 class="text-lg font-semibold mb-4" data-i18n="problemsByStatus">Problemas por Status</h3>
               <div class="chart-container">
                 <canvas id="statusChart"></canvas>
               </div>
             </div>
             <div class="bg-white p-6 rounded-xl shadow-lg">
-              <h3 class="text-lg font-semibold mb-4">Problemas por Urgência</h3>
+              <h3 class="text-lg font-semibold mb-4" data-i18n="problemsByUrgency">Problemas por Urgência</h3>
               <div class="chart-container">
                 <canvas id="urgencyChart"></canvas>
               </div>
@@ -161,28 +175,27 @@
           </div>
         </section>
 
-        <!-- Problems Section -->
         <section id="problemsSection" class="section hidden" role="region" aria-label="Problemas Reportados">
           <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold text-gray-800">Problemas Reportados</h1>
+            <h1 class="text-3xl font-bold text-gray-800" data-i18n="reportedProblems">Problemas Reportados</h1>
             <span id="notificationStatus" class="px-4 py-2 bg-green-500 text-white rounded-full text-sm font-medium" aria-live="polite"></span>
           </div>
           <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <input id="searchInput" type="text" class="border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar por título..." aria-label="Buscar problemas">
-              <select id="statusFilter" class="border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Filtrar por status">
-                <option value="">Todos os Status</option>
-                <option value="Aguardando">Aguardando</option>
-                <option value="Em Andamento">Em Andamento</option>
-                <option value="Resolvido">Resolvido</option>
+              <input id="searchInput" type="text" class="border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar por título..." aria-label="Buscar problemas" data-i18n-placeholder="searchByTitle">
+              <select id="statusFilter" class="border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Filtrar por status" data-i18n-options="statusFilterOptions">
+                <option value="" data-i18n="allStatuses">Todos os Status</option>
+                <option value="Aguardando" data-i18n="pending">Aguardando</option>
+                <option value="Em Andamento" data-i18n="inProgress">Em Andamento</option>
+                <option value="Resolvido" data-i18n="resolved">Resolvido</option>
               </select>
-              <select id="urgencyFilter" class="border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Filtrar por urgência">
-                <option value="">Todas as Urgências</option>
-                <option value="Baixa">Baixa</option>
-                <option value="Média">Média</option>
-                <option value="Alta">Alta</option>
+              <select id="urgencyFilter" class="border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Filtrar por urgência" data-i18n-options="urgencyFilterOptions">
+                <option value="" data-i18n="allUrgencies">Todas as Urgências</option>
+                <option value="Baixa" data-i18n="low">Baixa</option>
+                <option value="Média" data-i18n="medium">Média</option>
+                <option value="Alta" data-i18n="high">Alta</option>
               </select>
-              <button id="clearFilters" class="bg-gray-200 text-gray-700 rounded-lg p-3 hover:bg-gray-300 transition-colors" aria-label="Limpar filtros">Limpar</button>
+              <button id="clearFilters" class="bg-gray-200 text-gray-700 rounded-lg p-3 hover:bg-gray-300 transition-colors" aria-label="Limpar filtros" data-i18n="clearFilters">Limpar</button>
             </div>
           </div>
           <div id="problemsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
@@ -191,25 +204,24 @@
           </nav>
         </section>
 
-        <!-- Reports Section -->
         <section id="reportsSection" class="section hidden" role="region" aria-label="Relatórios">
-          <h1 class="text-3xl font-bold mb-8 text-gray-800">Relatórios</h1>
+          <h1 class="text-3xl font-bold mb-8 text-gray-800" data-i18n="reports">Relatórios</h1>
           <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
-            <select id="reportPeriod" class="border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Selecionar período do relatório">
-              <option value="30">Último mês</option>
-              <option value="90">Últimos 3 meses</option>
-              <option value="365">Último ano</option>
+            <select id="reportPeriod" class="border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Selecionar período do relatório" data-i18n-options="reportPeriodOptions">
+              <option value="30" data-i18n="lastMonth">Último mês</option>
+              <option value="90" data-i18n="last3Months">Últimos 3 meses</option>
+              <option value="365" data-i18n="lastYear">Último ano</option>
             </select>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="bg-white p-6 rounded-xl shadow-lg">
-              <h3 class="text-lg font-semibold mb-4">Problemas por Status</h3>
+              <h3 class="text-lg font-semibold mb-4" data-i18n="problemsByStatus">Problemas por Status</h3>
               <div class="chart-container">
                 <canvas id="statusChartReports"></canvas>
               </div>
             </div>
             <div class="bg-white p-6 rounded-xl shadow-lg">
-              <h3 class="text-lg font-semibold mb-4">Problemas por Urgência</h3>
+              <h3 class="text-lg font-semibold mb-4" data-i18n="problemsByUrgency">Problemas por Urgência</h3>
               <div class="chart-container">
                 <canvas id="urgencyChartReports"></canvas>
               </div>
@@ -220,58 +232,30 @@
     </div>
   </div>
 
-  <!-- Edit Modal -->
-  <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <div class="glassmorphism rounded-xl p-8 w-full max-w-2xl shadow-2xl">
+  <div id="resolutionImageModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden" role="dialog" aria-modal="true" aria-labelledby="resolutionModalTitle">
+    <div class="glassmorphism rounded-xl p-8 w-full max-w-lg shadow-2xl">
       <div class="flex justify-between items-center mb-6">
-        <h3 id="modalTitle" class="text-2xl font-semibold text-gray-800">Editar Problema</h3>
-        <button id="closeModal" class="text-gray-600 hover:text-gray-800 transition-colors" aria-label="Fechar modal">
+        <h3 id="resolutionModalTitle" class="text-2xl font-semibold text-gray-800" data-i18n="uploadResolutionImageTitle">Upload Image After Resolution</h3>
+        <button id="closeResolutionModal" class="text-gray-600 hover:text-gray-800 transition-colors" aria-label="Fechar modal">
           <i class="bi bi-x-lg text-xl"></i>
         </button>
       </div>
-      <form id="editForm">
+      <form id="resolutionImageForm">
         <div class="mb-4">
-          <label for="editTitle" class="block text-sm font-medium text-gray-700">Título</label>
-          <input type="text" id="editTitle" class="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" required aria-required="true">
+          <label for="resolutionImageInput" class="block text-sm font-medium text-gray-700" data-i18n="selectImage">Select Image</label>
+          <input type="file" id="resolutionImageInput" class="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" accept="image/*">
         </div>
         <div class="mb-4">
-          <label for="editDescription" class="block text-sm font-medium text-gray-700">Descrição</label>
-          <textarea id="editDescription" class="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" rows="4" required aria-required="true"></textarea>
-        </div>
-        <div class="mb-4">
-          <label for="editStatus" class="block text-sm font-medium text-gray-700">Status</label>
-          <select id="editStatus" class="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Selecionar status">
-            <option value="Aguardando">Aguardando</option>
-            <option value="Em Andamento">Em Andamento</option>
-            <option value="Resolvido">Resolvido</option>
-          </select>
-        </div>
-        <div class="mb-4">
-          <label for="editUrgency" class="block text-sm font-medium text-gray-700">Urgência</label>
-          <select id="editUrgency" class="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Selecionar urgência">
-            <option value="Baixa">Baixa</option>
-            <option value="Média">Média</option>
-            <option value="Alta">Alta</option>
-          </select>
-        </div>
-        <div class="mb-4">
-          <label for="editSuggestion" class="block text-sm font-medium text-gray-700">Sugestão</label>
-          <input type="text" id="editSuggestion" class="w-full border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
-        </div>
-        <div class="mb-4">
-          <label for="editImage" class="block text-sm font-medium text-gray-700">Imagem</label>
-          <input type="url" id="editImage" class="w-full border rounded-lg p-3 bg-gray-100" readonly aria-readonly="true">
-          <img id="imagePreview" src="" loading="lazy" class="mt-2 max-h-48 w-full object-cover rounded hidden" alt="Pré-visualização da imagem">
+          <img id="resolutionImagePreview" src="" loading="lazy" class="mt-2 max-h-48 w-full object-cover rounded hidden" alt="Preview da imagem de resolução">
         </div>
         <div class="flex justify-end space-x-3">
-          <button type="button" id="cancelEdit" class="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors" aria-label="Cancelar">Cancelar</button>
-          <button type="button" id="saveEdit" class="px-5 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors" aria-label="Salvar">Salvar</button>
+          <button type="button" id="cancelResolutionUpload" class="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors" data-i18n="cancel">Cancel</button>
+          <button type="submit" id="confirmResolutionUpload" class="px-5 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors" data-i18n="upload">Upload</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Scripts -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
@@ -301,12 +285,14 @@
     const ITEMS_PER_PAGE = 6;
     const RETRY_ATTEMPTS = 3;
     const RETRY_DELAY = 1000;
+    const DEFAULT_REPORT_PERIOD_DAYS = 30; // New constant for report period
 
     // State
     let currentPage = 1;
     let allProblems = [];
     let currentLang = 'pt-BR';
-    let charts = {};
+    let charts = {}; // Object to hold Chart.js instances
+    let currentProblemIdForImage = null; // To store the ID of the problem being resolved
 
     // Translations
     const translations = {
@@ -320,7 +306,45 @@
         errorUpdate: 'Erro ao atualizar: ',
         notificationsActive: 'Notificações ativas',
         notificationsDisabled: 'Notificações desativadas',
-        titleRequired: 'Título e descrição são obrigatórios!'
+        titleRequired: 'Título e descrição são obrigatórios!', // This might not be needed if editing is removed
+        noDate: 'Sem data',
+        errorNotifications: 'Erro ao configurar notificações',
+        newProblem: 'Novo Problema',
+        dashboard: 'Dashboard',
+        problems: 'Problemas',
+        reports: 'Relatórios',
+        language: 'Idioma',
+        toggleTheme: 'Alternar Tema',
+        logout: 'Sair',
+        adminPanel: 'Painel Administrativo',
+        fixabairroAdmin: 'FIXABAIRRO ADMIN',
+        pendingProblems: 'Problemas Pendentes',
+        resolvedProblems: 'Problemas Resolvidos',
+        highUrgency: 'Urgência Alta',
+        problemsByStatus: 'Problemas por Status',
+        problemsByUrgency: 'Problemas por Urgência',
+        reportedProblems: 'Problemas Reportados',
+        searchByTitle: 'Buscar por título...',
+        allStatuses: 'Todos os Status',
+        pending: 'Aguardando',
+        inProgress: 'Em Andamento',
+        resolved: 'Resolvido',
+        allUrgencies: 'Todas as Urgências',
+        low: 'Baixa',
+        medium: 'Média',
+        high: 'Alta',
+        clearFilters: 'Limpar',
+        lastMonth: 'Último mês',
+        last3Months: 'Últimos 3 meses',
+        lastYear: 'Último ano',
+        uploadResolutionImageTitle: 'Carregar Imagem de Resolução',
+        selectImage: 'Selecionar Imagem',
+        uploadingImage: 'Carregando imagem...',
+        imageUploadedSuccess: 'Imagem carregada com sucesso!',
+        imageUploadError: 'Erro ao carregar imagem: ',
+        cancel: 'Cancelar',
+        upload: 'Carregar',
+        errorLogout: 'Erro ao sair: '
       },
       'en-US': {
         noProblems: 'No problems found',
@@ -332,7 +356,45 @@
         errorUpdate: 'Error updating: ',
         notificationsActive: 'Notifications active',
         notificationsDisabled: 'Notifications disabled',
-        titleRequired: 'Title and description are required!'
+        titleRequired: 'Title and description are required!',
+        noDate: 'No date',
+        errorNotifications: 'Error configuring notifications',
+        newProblem: 'New Problem',
+        dashboard: 'Dashboard',
+        problems: 'Problems',
+        reports: 'Reports',
+        language: 'Language',
+        toggleTheme: 'Toggle Theme',
+        logout: 'Logout',
+        adminPanel: 'Admin Panel',
+        fixabairroAdmin: 'FIXABAIRRO ADMIN',
+        pendingProblems: 'Pending Problems',
+        resolvedProblems: 'Resolved Problems',
+        highUrgency: 'High Urgency',
+        problemsByStatus: 'Problems by Status',
+        problemsByUrgency: 'Problems by Urgency',
+        reportedProblems: 'Reported Problems',
+        searchByTitle: 'Search by title...',
+        allStatuses: 'All Statuses',
+        pending: 'Pending',
+        inProgress: 'In Progress',
+        resolved: 'Resolved',
+        allUrgencies: 'All Urgencies',
+        low: 'Low',
+        medium: 'Medium',
+        high: 'High',
+        clearFilters: 'Clear',
+        lastMonth: 'Last month',
+        last3Months: 'Last 3 months',
+        lastYear: 'Last year',
+        uploadResolutionImageTitle: 'Upload Resolution Image',
+        selectImage: 'Select Image',
+        uploadingImage: 'Uploading image...',
+        imageUploadedSuccess: 'Image uploaded successfully!',
+        imageUploadError: 'Error uploading image: ',
+        cancel: 'Cancel',
+        upload: 'Upload',
+        errorLogout: 'Error logging out: '
       }
     };
 
@@ -342,13 +404,13 @@
     }
 
     function formatDate(timestamp) {
-      if (!timestamp) return translate('noDate') || 'Sem data';
+      if (!timestamp) return translate('noDate');
       return new Date(timestamp).toLocaleString(currentLang, { dateStyle: 'medium', timeStyle: 'short' });
     }
 
     function showToast(message, type) {
       const toast = document.createElement('div');
-      toast.className = `fixed bottom-6 right-6 px-6 py-3 text-white rounded-lg shadow-lg bg-${type === 'danger' ? 'red' : type === 'success' ? 'green' : 'yellow'}-500 animate-slide-in z-50`;
+      toast.className = `fixed bottom-6 right-6 px-6 py-3 text-white rounded-lg shadow-lg bg-${type === 'danger' ? 'red' : type === 'success' ? 'green' : type === 'warning' ? 'yellow' : 'blue'}-500 animate-slide-in z-50`;
       toast.textContent = message;
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 3000);
@@ -362,7 +424,7 @@
         })
         .catch(error => {
           console.error('Erro ao registrar Service Worker:', error);
-          showToast(translate('errorNotifications') || 'Erro ao configurar notificações', 'danger');
+          showToast(translate('errorNotifications'), 'danger');
         });
     }
 
@@ -387,6 +449,14 @@
       }
     }
 
+    // Cloudinary Configuration
+    const cloudinaryConfig = {
+      cloudName: 'dlfukiusa',
+      apiKey: '438687859144979',
+      uploadPreset: 'fixabairro',
+      folder: 'fixa/resolved' // Folder for resolved images
+    };
+
     // Admin Panel Initialization
     function initializeAdminPanel(userId) {
       const problemsRef = ref(db, 'problems');
@@ -398,13 +468,21 @@
       const sectionLinks = document.querySelectorAll('.nav-link[data-section]');
       const sections = document.querySelectorAll('.section');
       const langLinks = document.querySelectorAll('[data-lang]');
-      const editModal = document.getElementById('editModal');
       const sidebarToggle = document.getElementById('sidebarToggle');
       const sidebarOpen = document.getElementById('sidebarOpen');
       const sidebar = document.getElementById('sidebar');
       const langDropdown = document.getElementById('langDropdown');
       const langMenu = document.getElementById('langMenu');
       const themeToggle = document.getElementById('themeToggle');
+
+      // References for the new resolution image modal
+      const resolutionImageModal = document.getElementById('resolutionImageModal');
+      const resolutionImageInput = document.getElementById('resolutionImageInput');
+      const resolutionImagePreview = document.getElementById('resolutionImagePreview');
+      const confirmResolutionUpload = document.getElementById('confirmResolutionUpload');
+      const cancelResolutionUpload = document.getElementById('cancelResolutionUpload');
+      const closeResolutionModal = document.getElementById('closeResolutionModal');
+
 
       // Sidebar Toggle
       sidebarOpen.addEventListener('click', () => {
@@ -427,7 +505,7 @@
         const body = document.body;
         const currentTheme = body.dataset.theme;
         body.dataset.theme = currentTheme === 'light' ? 'dark' : 'light';
-        updateCharts();
+        updateCharts(); // Re-render charts with new theme colors
       });
 
       // Load Problems
@@ -463,36 +541,58 @@
         const paginatedProblems = filteredProblems.slice(start, end);
         problemsGrid.innerHTML = '';
 
+        if (paginatedProblems.length === 0 && filteredProblems.length > 0) {
+          // If no problems on current page but there are filtered problems (e.g., last page had 1 item and now it's gone)
+          currentPage = 1;
+          renderProblems(); // Re-render from page 1
+          return;
+        }
+        if (paginatedProblems.length === 0 && filteredProblems.length === 0) {
+          problemsGrid.innerHTML = `<p class="col-span-full text-center text-gray-500">${translate('noProblemsAssigned')}</p>`;
+          renderPagination();
+          return;
+        }
+
+
         for (const problem of paginatedProblems) {
           const createdAt = formatDate(problem.createdAt);
           const urgencyClass = problem.urgency === 'Alta' ? 'text-red-500' : problem.urgency === 'Média' ? 'text-yellow-500' : 'text-green-500';
           problemsGrid.innerHTML += `
             <div class="bg-white p-6 rounded-xl shadow-lg card-hover transition-all">
               <h3 class="text-xl font-semibold text-gray-800">${problem.title || 'Sem título'}</h3>
-              <p class="text-gray-600 mt-2"><strong>Descrição:</strong> ${problem.description || 'Sem descrição'}</p>
-              <p class="text-gray-600"><strong>Município:</strong> ${problem.municipality || 'Sem município'}</p>
-              <p class="text-gray-600"><strong>Bairro:</strong> ${problem.neighborhood || 'Sem bairro'}</p>
-              <p class="text-gray-600"><strong>Categoria:</strong> ${problem.category || 'Sem categoria'}</p>
-              <p class="text-gray-600"><strong>Urgência:</strong> <span class="${urgencyClass} font-medium">${problem.urgency || 'Sem urgência'}</span></p>
-              <p class="text-gray-600"><strong>Status:</strong> ${problem.status || 'Sem status'}</p>
-              <p class="text-gray-600"><strong>Sugestão:</strong> ${problem.suggestion || 'Sem sugestão'}</p>
-              <p class="text-gray-600"><strong>Criado em:</strong> ${createdAt}</p>
-              ${problem.imageUrl ? `<a href="${problem.imageUrl}" target="_blank" aria-label="Ver imagem do problema"><img src="${problem.imageUrl}" loading="lazy" alt="Imagem do problema" class="mt-4 rounded-lg max-h-48 w-full object-cover"></a>` : '<p class="text-gray-500 mt-4">Sem imagem</p>'}
+              <p class="text-gray-600 mt-2"><strong>${translate('description')}:</strong> ${problem.description || 'Sem descrição'}</p>
+              <p class="text-gray-600"><strong>${translate('municipality')}:</strong> ${problem.location?.municipality || 'Sem município'}</p>
+              <p class="text-gray-600"><strong>${translate('neighborhood')}:</strong> ${problem.location?.neighborhood || 'Sem bairro'}</p>
+              <p class="text-gray-600"><strong>${translate('category')}:</strong> ${problem.category || 'Sem categoria'}</p>
+              <p class="text-gray-600"><strong>${translate('urgency')}:</strong> <span class="${urgencyClass} font-medium">${problem.urgency || 'Sem urgência'}</span></p>
+              <p class="text-gray-600"><strong>${translate('status')}:</strong> ${problem.status || 'Sem status'}</p>
+              <p class="text-gray-600"><strong>${translate('suggestion')}:</strong> ${problem.suggestion || 'Sem sugestão'}</p>
+              <p class="text-gray-600"><strong>${translate('createdAt')}:</strong> ${createdAt}</p>
+
+              ${problem.imageUrlBefore ? `
+                <p class="text-gray-600 mt-4"><strong>${translate('imageBefore')}:</strong></p>
+                <a href="${problem.imageUrlBefore}" target="_blank" aria-label="${translate('viewImageBefore')}">
+                  <img src="${problem.imageUrlBefore}" loading="lazy" alt="${translate('problemImageBefore')}" class="mt-2 rounded-lg max-h-48 w-full object-cover">
+                </a>` : `<p class="text-gray-500 mt-4">${translate('noImageBefore')}</p>`}
+
+              ${problem.imageUrlAfter ? `
+                <p class="text-gray-600 mt-4"><strong>${translate('imageAfter')}:</strong></p>
+                <a href="${problem.imageUrlAfter}" target="_blank" aria-label="${translate('viewImageAfter')}">
+                  <img src="${problem.imageUrlAfter}" loading="lazy" alt="${translate('problemImageAfter')}" class="mt-2 rounded-lg max-h-48 w-full object-cover">
+                </a>` : `<p class="text-gray-500 mt-4">${translate('noImageAfter')}</p>`}
+
               <div class="mt-6 flex space-x-3">
-                <select class="border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="updateStatus('${problem.id}', this.value)" aria-label="Alterar status do problema">
-                  <option value="Aguardando" ${problem.status === 'Aguardando' ? 'selected' : ''}>Aguardando</option>
-                  <option value="Em Andamento" ${problem.status === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option>
-                  <option value="Resolvido" ${problem.status === 'Resolvido' ? 'selected' : ''}>Resolvido</option>
+                <select class="border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="handleStatusChange('${problem.id}', this.value)" aria-label="${translate('changeProblemStatus')}">
+                  <option value="Aguardando" ${problem.status === 'Aguardando' ? 'selected' : ''}>${translate('pending')}</option>
+                  <option value="Em Andamento" ${problem.status === 'Em Andamento' ? 'selected' : ''}>${translate('inProgress')}</option>
+                  <option value="Resolvido" ${problem.status === 'Resolvido' ? 'selected' : ''}>${translate('resolved')}</option>
                 </select>
-                <button class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors" onclick="openEditModal('${problem.id}', '${problem.title || ''}', '${problem.description || ''}', '${problem.status || ''}', '${problem.urgency || ''}', '${problem.suggestion || ''}', '${problem.imageUrl || ''}')" aria-label="Editar problema">
-                  <i class="bi bi-pencil mr-2"></i> Editar
-                </button>
               </div>
             </div>
           `;
         }
-
         renderPagination();
+        updateLanguage(); // Ensure all new elements are translated
       }
 
       // Filter Problems
@@ -518,17 +618,17 @@
         if (totalPages <= 1) return;
 
         pagination.innerHTML += `
-          <li><a href="#" class="px-4 py-2 rounded-lg ${currentPage === 1 ? 'bg-gray-300' : 'bg-blue-500 text-white'} hover:bg-blue-600 transition-colors" data-page="${currentPage - 1}" aria-label="Página anterior">Anterior</a></li>
+          <li><a href="#" class="px-4 py-2 rounded-lg ${currentPage === 1 ? 'bg-gray-300' : 'bg-blue-500 text-white'} hover:bg-blue-600 transition-colors" data-page="${currentPage - 1}" aria-label="${translate('previousPage')}">${translate('previous')}</a></li>
         `;
 
         for (let i = 1; i <= totalPages; i++) {
           pagination.innerHTML += `
-            <li><a href="#" class="px-4 py-2 rounded-lg ${currentPage === i ? 'bg-blue-500 text-white' : 'bg-gray-200'} hover:bg-blue-600 hover:text-white transition-colors" data-page="${i}" aria-label="Página ${i}">${i}</a></li>
+            <li><a href="#" class="px-4 py-2 rounded-lg ${currentPage === i ? 'bg-blue-500 text-white' : 'bg-gray-200'} hover:bg-blue-600 hover:text-white transition-colors" data-page="${i}" aria-label="${translate('page')} ${i}">${i}</a></li>
           `;
         }
 
         pagination.innerHTML += `
-          <li><a href="#" class="px-4 py-2 rounded-lg ${currentPage === totalPages ? 'bg-gray-300' : 'bg-blue-500 text-white'} hover:bg-blue-600 transition-colors" data-page="${currentPage + 1}" aria-label="Próxima página">Próximo</a></li>
+          <li><a href="#" class="px-4 py-2 rounded-lg ${currentPage === totalPages ? 'bg-gray-300' : 'bg-blue-500 text-white'} hover:bg-blue-600 transition-colors" data-page="${currentPage + 1}" aria-label="${translate('nextPage')}">${translate('next')}</a></li>
         `;
 
         pagination.querySelectorAll('a[data-page]').forEach(link => {
@@ -556,7 +656,7 @@
         updateCharts();
       }
 
-      // Update Charts
+      // Update Charts (for Dashboard)
       function updateCharts() {
         const stats = {
           byStatus: { Aguardando: 0, 'Em Andamento': 0, Resolvido: 0 },
@@ -576,17 +676,15 @@
           text: isDarkMode ? '#f3f4f6' : '#1f2937'
         };
 
-        // Destroy existing charts if they exist
+        // Destroy existing dashboard charts if they exist
         if (charts.statusChart) charts.statusChart.destroy();
         if (charts.urgencyChart) charts.urgencyChart.destroy();
-        if (charts.statusChartReports) charts.statusChartReports.destroy();
-        if (charts.urgencyChartReports) charts.urgencyChartReports.destroy();
 
         // Status Chart (Dashboard)
         charts.statusChart = new Chart(document.getElementById('statusChart').getContext('2d'), {
           type: 'doughnut',
           data: {
-            labels: Object.keys(stats.byStatus),
+            labels: Object.keys(stats.byStatus).map(key => translate(key.toLowerCase().replace(/ /g, '')) || key), // Translate labels
             datasets: [{
               data: Object.values(stats.byStatus),
               backgroundColor: chartColors.status,
@@ -598,7 +696,7 @@
             maintainAspectRatio: false,
             plugins: {
               legend: { position: 'top', labels: { color: chartColors.text, font: { size: 14 } } },
-              title: { display: true, text: translate('statusDistribution') || 'Distribuição por Status', color: chartColors.text, font: { size: 16 } }
+              title: { display: true, text: translate('problemsByStatus'), color: chartColors.text, font: { size: 16 } }
             }
           }
         });
@@ -607,9 +705,9 @@
         charts.urgencyChart = new Chart(document.getElementById('urgencyChart').getContext('2d'), {
           type: 'bar',
           data: {
-            labels: Object.keys(stats.byUrgency),
+            labels: Object.keys(stats.byUrgency).map(key => translate(key.toLowerCase()) || key), // Translate labels
             datasets: [{
-              label: translate('problems') || 'Problemas',
+              label: translate('problems'),
               data: Object.values(stats.byUrgency),
               backgroundColor: chartColors.urgency,
               borderRadius: 4
@@ -624,7 +722,7 @@
             },
             plugins: {
               legend: { display: false },
-              title: { display: true, text: translate('urgencyDistribution') || 'Distribuição por Urgência', color: chartColors.text, font: { size: 16 } }
+              title: { display: true, text: translate('problemsByUrgency'), color: chartColors.text, font: { size: 16 } }
             }
           }
         });
@@ -647,13 +745,16 @@
         link.addEventListener('click', e => {
           e.preventDefault();
           const section = link.dataset.section;
-          sections.forEach(s => s.classList.add('hidden'));
-          document.getElementById(`${section}Section`).classList.remove('hidden');
-          sectionLinks.forEach(l => l.classList.remove('active:bg-gray-600'));
-          link.classList.add('active:bg-gray-600');
-          if (section === 'reports') loadReports(30);
-          if (section === 'dashboard') updateDashboard();
-          sidebar.classList.add('sidebar-hidden');
+          sections.forEach(s => s.classList.add('hidden')); // Hide all sections
+          document.getElementById(`${section}Section`).classList.remove('hidden'); // Show the clicked section
+
+          // Update active link styling
+          sectionLinks.forEach(l => l.classList.remove('bg-gray-600', 'text-white')); // Remove active styling from all
+          link.classList.add('bg-gray-600', 'text-white'); // Add active styling to the clicked link
+
+          if (section === 'reports') loadReports(parseInt(document.getElementById('reportPeriod').value || DEFAULT_REPORT_PERIOD_DAYS)); // Load reports when the section is active
+          else if (section === 'dashboard') updateDashboard(); // Ensure dashboard charts are updated if changing from another section
+          sidebar.classList.add('sidebar-hidden'); // Hide sidebar on mobile
         });
       });
 
@@ -664,69 +765,120 @@
           currentLang = link.dataset.lang;
           langMenu.classList.add('hidden');
           langDropdown.setAttribute('aria-expanded', 'false');
-          renderProblems();
+          updateLanguage(); // Call to update all i18n elements
+          renderProblems(); // Re-render problems for status dropdowns and other problem-related text
           if (!document.getElementById('reportsSection').classList.contains('hidden')) {
             loadReports(parseInt(document.getElementById('reportPeriod').value));
           }
-          updateCharts();
+          updateCharts(); // Re-render dashboard charts with new language labels
         });
       });
 
-      // Update Status
-      window.updateStatus = async (problemId, newStatus) => {
+      // --- New Status Update & Image Upload Logic ---
+      window.handleStatusChange = async (problemId, newStatus) => {
         try {
           await update(ref(db, `problems/${problemId}`), { status: newStatus });
           showToast(translate('statusUpdated'), 'success');
+
+          // If status is "Resolvido", open the image upload modal
+          if (newStatus === 'Resolvido') {
+            currentProblemIdForImage = problemId; // Store the ID
+            resolutionImageInput.value = ''; // Clear previous file selection
+            resolutionImagePreview.src = '';
+            resolutionImagePreview.classList.add('hidden');
+            resolutionImageModal.classList.remove('hidden');
+            resolutionImageInput.focus(); // Focus on the input for accessibility
+          }
         } catch (error) {
           showToast(`${translate('errorUpdate')} ${error.message}`, 'danger');
         }
       };
 
-      // Edit Modal
-      window.openEditModal = (problemId, title, description, status, urgency, suggestion, imageUrl) => {
-        document.getElementById('editTitle').value = title;
-        document.getElementById('editDescription').value = description;
-        document.getElementById('editStatus').value = status;
-        document.getElementById('editUrgency').value = urgency;
-        document.getElementById('editSuggestion').value = suggestion;
-        document.getElementById('editImage').value = imageUrl;
-        const preview = document.getElementById('imagePreview');
-        if (imageUrl) {
-          preview.src = imageUrl;
-          preview.classList.remove('hidden');
+      // Event listener for image input change (preview)
+      resolutionImageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            resolutionImagePreview.src = event.target.result;
+            resolutionImagePreview.classList.remove('hidden');
+          };
+          reader.readAsDataURL(file);
         } else {
-          preview.classList.add('hidden');
-        }
-        document.getElementById('saveEdit').dataset.problemId = problemId;
-        editModal.classList.remove('hidden');
-      };
-
-      document.getElementById('saveEdit').addEventListener('click', async () => {
-        const problemId = document.getElementById('saveEdit').dataset.problemId;
-        const updates = {
-          title: document.getElementById('editTitle').value.trim(),
-          description: document.getElementById('editDescription').value.trim(),
-          status: document.getElementById('editStatus').value,
-          urgency: document.getElementById('editUrgency').value,
-          suggestion: document.getElementById('editSuggestion').value.trim()
-        };
-
-        if (!updates.title || !updates.description) {
-          showToast(translate('titleRequired'), 'warning');
-          return;
-        }
-
-        try {
-          await update(ref(db, `problems/${problemId}`), updates);
-          showToast(translate('problemUpdated'), 'success');
-          editModal.classList.add('hidden');
-        } catch (error) {
-          showToast(`${translate('errorUpdate')} ${error.message}`, 'danger');
+          resolutionImagePreview.src = '';
+          resolutionImagePreview.classList.add('hidden');
         }
       });
 
-      document.getElementById('closeModal').addEventListener('click', () => editModal.classList.add('hidden'));
-      document.getElementById('cancelEdit').addEventListener('click', () => editModal.classList.add('hidden'));
+      // Event listener for uploading image
+      confirmResolutionUpload.addEventListener('click', async (e) => {
+        e.preventDefault(); // Prevent default form submission
+
+        const file = resolutionImageInput.files[0];
+        if (!file) {
+          showToast(translate('selectImage'), 'warning');
+          return;
+        }
+
+        if (!currentProblemIdForImage) {
+          showToast('Erro: ID do problema não encontrado para upload.', 'danger'); // Translate this!
+          return;
+        }
+
+        showToast(translate('uploadingImage'), 'info');
+        confirmResolutionUpload.disabled = true; // Disable button during upload
+
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('upload_preset', cloudinaryConfig.uploadPreset);
+          formData.append('folder', cloudinaryConfig.folder);
+          // formData.append('api_key', cloudinaryConfig.apiKey); // Often not strictly necessary for upload presets, but good for explicit clarity
+
+          const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryConfig.cloudName}/image/upload`, {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Cloudinary error: ${errorData.error.message || response.statusText}`);
+          }
+
+          const data = await response.json();
+          const imageUrlAfter = data.secure_url;
+
+          // Update Firebase Realtime Database with the new image URL
+          await update(ref(db, `problems/${currentProblemIdForImage}`), { imageUrlAfter: imageUrlAfter });
+
+          showToast(translate('imageUploadedSuccess'), 'success');
+          resolutionImageModal.classList.add('hidden'); // Close modal
+          confirmResolutionUpload.disabled = false; // Re-enable button
+          currentProblemIdForImage = null; // Clear problem ID
+          resolutionImageInput.value = ''; // Clear input
+          resolutionImagePreview.src = ''; // Clear preview
+          resolutionImagePreview.classList.add('hidden'); // Hide preview
+
+        } catch (error) {
+          console.error('Cloudinary upload error:', error);
+          showToast(`${translate('imageUploadError')} ${error.message}`, 'danger');
+          confirmResolutionUpload.disabled = false; // Re-enable button on error
+        }
+      });
+
+      // Modal close buttons for resolution image modal
+      cancelResolutionUpload.addEventListener('click', () => resolutionImageModal.classList.add('hidden'));
+      closeResolutionModal.addEventListener('click', () => resolutionImageModal.classList.add('hidden'));
+
+      // Keyboard navigation for resolution image modal
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && !resolutionImageModal.classList.contains('hidden')) {
+          resolutionImageModal.classList.add('hidden');
+          closeResolutionModal.focus();
+        }
+      });
+      // --- End New Status Update & Image Upload Logic ---
+
 
       // Reports
       async function loadReports(periodDays) {
@@ -742,6 +894,7 @@
 
           querySnapshot.forEach(doc => {
             const data = doc.data();
+            // Ensure only problems assigned to the current user are counted for reports as well
             if (data.responsibleId !== userId) return;
             stats.byStatus[data.status] = (stats.byStatus[data.status] || 0) + 1;
             stats.byUrgency[data.urgency] = (stats.byUrgency[data.urgency] || 0) + 1;
@@ -755,11 +908,15 @@
             text: isDarkMode ? '#f3f4f6' : '#1f2937'
           };
 
+          // Destroy existing report charts if they exist
+          if (charts.statusChartReports) charts.statusChartReports.destroy();
+          if (charts.urgencyChartReports) charts.urgencyChartReports.destroy();
+
           // Status Chart (Reports)
           charts.statusChartReports = new Chart(document.getElementById('statusChartReports').getContext('2d'), {
             type: 'pie',
             data: {
-              labels: Object.keys(stats.byStatus),
+              labels: Object.keys(stats.byStatus).map(key => translate(key.toLowerCase().replace(/ /g, '')) || key),
               datasets: [{
                 data: Object.values(stats.byStatus),
                 backgroundColor: chartColors.status,
@@ -771,7 +928,7 @@
               maintainAspectRatio: false,
               plugins: {
                 legend: { position: 'top', labels: { color: chartColors.text, font: { size: 14 } } },
-                title: { display: true, text: translate('statusDistribution') || 'Distribuição por Status', color: chartColors.text, font: { size: 16 } }
+                title: { display: true, text: translate('problemsByStatus'), color: chartColors.text, font: { size: 16 } }
               }
             }
           });
@@ -780,9 +937,9 @@
           charts.urgencyChartReports = new Chart(document.getElementById('urgencyChartReports').getContext('2d'), {
             type: 'bar',
             data: {
-              labels: Object.keys(stats.byUrgency),
+              labels: Object.keys(stats.byUrgency).map(key => translate(key.toLowerCase()) || key),
               datasets: [{
-                label: translate('problems') || 'Problemas',
+                label: translate('problems'),
                 data: Object.values(stats.byUrgency),
                 backgroundColor: chartColors.urgency,
                 borderRadius: 4
@@ -797,21 +954,25 @@
               },
               plugins: {
                 legend: { display: false },
-                title: { display: true, text: translate('urgencyDistribution') || 'Distribuição por Urgência', color: chartColors.text, font: { size: 16 } }
+                title: { display: true, text: translate('problemsByUrgency'), color: chartColors.text, font: { size: 16 } }
               }
             }
           });
+          updateLanguage(); // Ensure report chart titles/labels are translated
         } catch (error) {
           showToast(translate('errorReports'), 'danger');
+          console.error('Erro ao carregar relatórios:', error);
         }
       }
 
       // Notifications for New Problems
       onChildAdded(ref(db, 'problems'), snapshot => {
         const problem = snapshot.val();
+        // Only show notification if the new problem is assigned to this user and notifications are granted
         if (problem.responsibleId !== userId || Notification.permission !== 'granted') return;
-        new Notification(translate('newProblem') || 'Novo Problema', {
-          body: `${problem.title || 'Sem título'} - ${problem.description || 'Sem descrição'}`,
+
+        new Notification(translate('newProblem'), {
+          body: `${problem.title || translate('noTitle')} - ${problem.description || translate('noDescription')}`, // Use translations
           icon: '/assets/icons/Icon-192.png'
         });
       });
@@ -819,13 +980,43 @@
       // Report Period Change
       document.getElementById('reportPeriod').addEventListener('change', e => loadReports(parseInt(e.target.value)));
 
-      // Keyboard Navigation
-      document.addEventListener('keydown', e => {
-        if (e.key === 'Escape' && !editModal.classList.contains('hidden')) {
-          editModal.classList.add('hidden');
-          document.getElementById('closeModal').focus();
-        }
-      });
+      // Function to update language for all data-i18n elements
+      function updateLanguage() {
+        document.querySelectorAll('[data-i18n]').forEach(element => {
+          const key = element.dataset.i18n;
+          element.textContent = translate(key);
+        });
+
+        // Update placeholder texts
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+            const key = element.dataset.i18nPlaceholder;
+            element.placeholder = translate(key);
+        });
+
+        // Update select option texts
+        const statusFilterOptions = document.getElementById('statusFilter').querySelectorAll('option');
+        statusFilterOptions[0].textContent = translate('allStatuses');
+        statusFilterOptions[1].textContent = translate('pending');
+        statusFilterOptions[2].textContent = translate('inProgress');
+        statusFilterOptions[3].textContent = translate('resolved');
+
+        const urgencyFilterOptions = document.getElementById('urgencyFilter').querySelectorAll('option');
+        urgencyFilterOptions[0].textContent = translate('allUrgencies');
+        urgencyFilterOptions[1].textContent = translate('low');
+        urgencyOptions[2].textContent = translate('medium');
+        urgencyOptions[3].textContent = translate('high');
+
+        const reportPeriodOptions = document.getElementById('reportPeriod').querySelectorAll('option');
+        reportPeriodOptions[0].textContent = translate('lastMonth');
+        reportPeriodOptions[1].textContent = translate('last3Months');
+        reportPeriodOptions[2].textContent = translate('lastYear');
+
+        // Re-render problems to update status/urgency dropdowns and image labels
+        renderProblems();
+      }
+
+      // Initial translation update after everything is rendered
+      updateLanguage();
     }
 
     // Initialize Authentication
@@ -837,6 +1028,7 @@
             initializeAdminPanel(user.uid);
             requestNotificationPermission();
           } else {
+            console.warn('Usuário não é responsável ou documento não existe:', user.uid);
             await signOut(auth);
             window.location.href = '/login.html';
           }
@@ -846,6 +1038,7 @@
           window.location.href = '/login.html';
         }
       } else {
+        console.log('Nenhum usuário autenticado ou página incorreta. Redirecionando para login.');
         window.location.href = '/login.html';
       }
     });
@@ -856,7 +1049,8 @@
         await signOut(auth);
         window.location.href = '/login.html';
       } catch (error) {
-        showToast(translate('errorLogout') || 'Erro ao sair: ' + error.message, 'danger');
+        showToast(translate('errorLogout') + error.message, 'danger');
+        console.error('Erro ao fazer logout:', error);
       }
     });
   </script>
