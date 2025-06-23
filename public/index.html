@@ -266,461 +266,598 @@
   </div>
 
   <!-- Scripts -->
-  <script type="module">
-    // Import Firebase services and functions from auth.js
-    import { auth, db, firestore, messaging, signOut, setAdminPanelInitializer } from '/auth.js';
-    // Import specific Realtime Database and Firestore functions needed directly
-    import { ref, onValue, update, onChildAdded } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-    import { collection, query, where, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-    import { getToken } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js';
-    import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
+<script type="module">
+  // Import Firebase services and functions from auth.js
+  import { auth, db, firestore, messaging, signOut, setAdminPanelInitializer } from '/auth.js';
+  import { ref, onValue, update } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+  import { collection, query, where, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+  import { getToken } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js';
+  import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
 
-    // Initialize Firebase Functions
-    const functions = getFunctions();
+  // Initialize Firebase Functions
+  const functions = getFunctions();
 
-    // Configuration
-    const ITEMS_PER_PAGE = 6;
-    const RETRY_ATTEMPTS = 3;
-    const RETRY_DELAY = 1000;
-    const DEFAULT_REPORT_PERIOD_DAYS = 30;
+  // Configuration
+  const ITEMS_PER_PAGE = 6;
+  const DEFAULT_REPORT_PERIOD_DAYS = 30;
 
-    // State
-    let currentPage = 1;
-    let allProblems = [];
-    let currentLang = 'pt-BR';
-    let charts = {};
-    let currentProblemIdForImage = null;
+  // State
+  let currentPage = 1;
+  let allProblems = [];
+  let currentLang = 'pt-BR';
+  let charts = {};
+  let currentProblemIdForImage = null;
+  let userId = null;
 
-    // Translations
-    const translations = {
-      'pt-BR': {
-        noProblems: 'Nenhum problema encontrado',
-        noProblemsAssigned: 'Nenhum problema atribuído a você',
-        errorLoading: 'Erro ao carregar problemas',
-        errorReports: 'Erro ao carregar relatórios',
-        statusUpdated: 'Status atualizado!',
-        problemUpdated: 'Problema atualizado com sucesso!',
-        errorUpdate: 'Erro ao atualizar: ',
-        notificationsActive: 'Notificações ativas',
-        notificationsDisabled: 'Notificações desativadas',
-        titleRequired: 'Título e descrição são obrigatórios!',
-        noDate: 'Sem data',
-        errorNotifications: 'Erro ao configurar notificações',
-        newProblem: 'Novo Problema',
-        dashboard: 'Dashboard',
-        problems: 'Problemas',
-        reports: 'Relatórios',
-        language: 'Idioma',
-        toggleTheme: 'Alternar Tema',
-        logout: 'Sair',
-        adminPanel: 'Painel Administrativo',
-        fixabairroAdmin: 'FIXABAIRRO ADMIN',
-        pendingProblems: 'Problemas Pendentes',
-        resolvedProblems: 'Problemas Resolvidos',
-        highUrgency: 'Urgência Alta',
-        problemsByStatus: 'Problemas por Status',
-        problemsByUrgency: 'Problemas por Urgência',
-        reportedProblems: 'Problemas Reportados',
-        searchByTitle: 'Buscar por título...',
-        allStatuses: 'Todos os Status',
-        pending: 'Aguardando',
-        inProgress: 'Em Andamento',
-        resolved: 'Resolvido',
-        allUrgencies: 'Todas as Urgências',
-        low: 'Baixa',
-        medium: 'Média',
-        high: 'Alta',
-        clearFilters: 'Limpar',
-        lastMonth: 'Último mês',
-        last3Months: 'Últimos 3 meses',
-        lastYear: 'Último ano',
-        uploadResolutionImageTitle: 'Carregar Imagem de Resolução',
-        selectImage: 'Selecionar Imagem',
-        uploadingImage: 'Carregando imagem...',
-        imageUploadedSuccess: 'Imagem carregada com sucesso!',
-        imageUploadError: 'Erro ao carregar imagem: ',
-        cancel: 'Cancelar',
-        upload: 'Carregar',
-        errorLogout: 'Erro ao sair: ',
-        description: 'Descrição',
-        municipality: 'Município',
-        neighborhood: 'Bairro',
-        category: 'Categoria',
-        urgency: 'Urgência',
-        status: 'Status',
-        suggestion: 'Sugestão',
-        createdAt: 'Criado em',
-        imageBefore: 'Imagem Antes',
-        viewImageBefore: 'Ver imagem do problema',
-        problemImageBefore: 'Imagem do problema (antes)',
-        noImageBefore: 'Sem imagem (antes)',
-        imageAfter: 'Imagem Depois',
-        viewImageAfter: 'Ver imagem de resolução',
-        problemImageAfter: 'Imagem do problema (depois)',
-        noImageAfter: 'Sem imagem (depois)',
-        changeProblemStatus: 'Alterar status do problema',
-        previousPage: 'Página anterior',
-        previous: 'Anterior',
-        page: 'Página',
-        nextPage: 'Próxima página',
-        next: 'Próximo',
-        noTitle: 'Sem título',
-        noDescription: 'Sem descrição',
-        noMunicipality: 'Sem município',
-        noNeighborhood: 'Sem bairro',
-        noCategory: 'Sem categoria',
-        noUrgency: 'Sem urgência',
-        noStatus: 'Sem status',
-        noSuggestion: 'Sem sugestão',
-        aguardando: 'Aguardando',
-        emandamento: 'Em Andamento',
-        resolvido: 'Resolvido'
-      },
-      'en-US': {
-        noProblems: 'No problems found',
-        noProblemsAssigned: 'No problems assigned to you',
-        errorLoading: 'Error loading problems',
-        errorReports: 'Error loading reports',
-        statusUpdated: 'Status updated!',
-        problemUpdated: 'Problem updated successfully!',
-        errorUpdate: 'Error updating: ',
-        notificationsActive: 'Notifications active',
-        notificationsDisabled: 'Notifications disabled',
-        titleRequired: 'Title and description are required!',
-        noDate: 'No date',
-        errorNotifications: 'Error configuring notifications',
-        newProblem: 'New Problem',
-        dashboard: 'Dashboard',
-        problems: 'Problems',
-        reports: 'Reports',
-        language: 'Language',
-        toggleTheme: 'Toggle Theme',
-        logout: 'Logout',
-        adminPanel: 'Admin Panel',
-        fixabairroAdmin: 'FIXABAIRRO ADMIN',
-        pendingProblems: 'Pending Problems',
-        resolvedProblems: 'Resolved Problems',
-        highUrgency: 'High Urgency',
-        problemsByStatus: 'Problems by Status',
-        problemsByUrgency: 'Problems by Urgency',
-        reportedProblems: 'Reported Problems',
-        searchByTitle: 'Search by title...',
-        allStatuses: 'All Statuses',
-        pending: 'Pending',
-        inProgress: 'In Progress',
-        resolved: 'Resolved',
-        allUrgencies: 'All Urgencies',
-        low: 'Low',
-        medium: 'Medium',
-        high: 'High',
-        clearFilters: 'Clear',
-        lastMonth: 'Last month',
-        last3Months: 'Last 3 months',
-        lastYear: 'Last year',
-        uploadResolutionImageTitle: 'Upload Resolution Image',
-        selectImage: 'Select Image',
-        uploadingImage: 'Uploading image...',
-        imageUploadedSuccess: 'Image uploaded successfully!',
-        imageUploadError: 'Error uploading image: ',
-        cancel: 'Cancel',
-        upload: 'Upload',
-        errorLogout: 'Error logging out: ',
-        description: 'Description',
-        municipality: 'Municipality',
-        neighborhood: 'Neighborhood',
-        category: 'Category',
-        urgency: 'Urgency',
-        status: 'Status',
-        suggestion: 'Suggestion',
-        createdAt: 'Created At',
-        imageBefore: 'Image Before',
-        viewImageBefore: 'View problem image',
-        problemImageBefore: 'Problem Image (Before)',
-        noImageBefore: 'No image (before)',
-        imageAfter: 'Image After',
-        viewImageAfter: 'View resolution image',
-        problemImageAfter: 'Problem Image (After)',
-        noImageAfter: 'No image (after)',
-        changeProblemStatus: 'Change problem status',
-        previousPage: 'Previous page',
-        previous: 'Previous',
-        page: 'Page',
-        nextPage: 'Next page',
-        next: 'Next',
-        noTitle: 'No title',
-        noDescription: 'No description',
-        noMunicipality: 'No municipality',
-        noNeighborhood: 'No neighborhood',
-        noCategory: 'No category',
-        noUrgency: 'No urgency',
-        noStatus: 'No status',
-        noSuggestion: 'No suggestion',
-        aguardando: 'Pending',
-        emandamento: 'In Progress',
-        resolvido: 'Resolved'
+  // Translations
+  const translations = {
+    'pt-BR': {
+      noProblems: 'Nenhum problema encontrado',
+      errorLoading: 'Erro ao carregar problemas',
+      errorReports: 'Erro ao carregar relatórios',
+      statusUpdated: 'Status atualizado!',
+      problemUpdated: 'Problema atualizado com sucesso!',
+      errorUpdate: 'Erro ao atualizar: ',
+      notificationsActive: 'Notificações ativas',
+      notificationsDisabled: 'Notificações desativadas',
+      errorNotifications: 'Erro ao configurar notificações',
+      dashboard: 'Dashboard',
+      problems: 'Problemas',
+      reports: 'Relatórios',
+      language: 'Idioma',
+      toggleTheme: 'Alternar Tema',
+      logout: 'Sair',
+      adminPanel: 'Painel Administrativo',
+      fixabairroAdmin: 'FIXABAIRRO ADMIN',
+      pendingProblems: 'Problemas Pendentes',
+      resolvedProblems: 'Problemas Resolvidos',
+      highUrgency: 'Urgência Alta',
+      problemsByStatus: 'Problemas por Status',
+      problemsByUrgency: 'Problemas por Urgência',
+      reportedProblems: 'Problemas Reportados',
+      searchByTitle: 'Buscar por título...',
+      allStatuses: 'Todos os Status',
+      pending: 'Aguardando',
+      inProgress: 'Em Andamento',
+      resolved: 'Resolvido',
+      allUrgencies: 'Todas as Urgências',
+      low: 'Baixa',
+      medium: 'Média',
+      high: 'Alta',
+      clearFilters: 'Limpar',
+      lastMonth: 'Último mês',
+      last3Months: 'Últimos 3 meses',
+      lastYear: 'Último ano',
+      uploadResolutionImageTitle: 'Carregar Imagem de Resolução',
+      selectImage: 'Selecionar Imagem',
+      uploadingImage: 'Carregando imagem...',
+      imageUploadedSuccess: 'Imagem carregada com sucesso!',
+      imageUploadError: 'Erro ao carregar imagem: ',
+      cancel: 'Cancelar',
+      upload: 'Carregar',
+      errorLogout: 'Erro ao sair: ',
+      description: 'Descrição',
+      municipality: 'Município',
+      neighborhood: 'Bairro',
+      category: 'Categoria',
+      urgency: 'Urgência',
+      status: 'Status',
+      suggestion: 'Sugestão',
+      createdAt: 'Criado em',
+      imageBefore: 'Imagem Antes',
+      viewImageBefore: 'Ver imagem do problema',
+      problemImageBefore: 'Imagem do problema (antes)',
+      noImageBefore: 'Sem imagem (antes)',
+      imageAfter: 'Imagem Depois',
+      viewImageAfter: 'Ver imagem de resolução',
+      problemImageAfter: 'Imagem do problema (depois)',
+      noImageAfter: 'Sem imagem (depois)',
+      changeProblemStatus: 'Alterar status do problema',
+      assignToMe: 'Atribuir a Mim',
+      problemAssigned: 'Problema atribuído com sucesso!',
+      responsible: 'Responsável'
+    },
+    'en-US': {
+      noProblems: 'No problems found',
+      errorLoading: 'Error loading problems',
+      errorReports: 'Error loading reports',
+      statusUpdated: 'Status updated!',
+      problemUpdated: 'Problem updated successfully!',
+      errorUpdate: 'Error updating: ',
+      notificationsActive: 'Notifications active',
+      notificationsDisabled: 'Notifications disabled',
+      errorNotifications: 'Error configuring notifications',
+      dashboard: 'Dashboard',
+      problems: 'Problems',
+      reports: 'Reports',
+      language: 'Language',
+      toggleTheme: 'Toggle Theme',
+      logout: 'Logout',
+      adminPanel: 'Admin Panel',
+      fixabairroAdmin: 'FIXABAIRRO ADMIN',
+      pendingProblems: 'Pending Problems',
+      resolvedProblems: 'Resolved Problems',
+      highUrgency: 'High Urgency',
+      problemsByStatus: 'Problems by Status',
+      problemsByUrgency: 'Problems by Urgency',
+      reportedProblems: 'Reported Problems',
+      searchByTitle: 'Search by title...',
+      allStatuses: 'All Statuses',
+      pending: 'Pending',
+      inProgress: 'In Progress',
+      resolved: 'Resolved',
+      allUrgencies: 'All Urgencies',
+      low: 'Low',
+      medium: 'Medium',
+      high: 'High',
+      clearFilters: 'Clear',
+      lastMonth: 'Last month',
+      last3Months: 'Last 3 months',
+      lastYear: 'Last year',
+      uploadResolutionImageTitle: 'Upload Resolution Image',
+      selectImage: 'Select Image',
+      uploadingImage: 'Uploading image...',
+      imageUploadedSuccess: 'Image uploaded successfully!',
+      imageUploadError: 'Error uploading image: ',
+      cancel: 'Cancel',
+      upload: 'Upload',
+      errorLogout: 'Error logging out: ',
+      description: 'Description',
+      municipality: 'Municipality',
+      neighborhood: 'Neighborhood',
+      category: 'Category',
+      urgency: 'Urgency',
+      status: 'Status',
+      suggestion: 'Suggestion',
+      createdAt: 'Created At',
+      imageBefore: 'Image Before',
+      viewImageBefore: 'View problem image',
+      problemImageBefore: 'Problem Image (Before)',
+      noImageBefore: 'No image (before)',
+      imageAfter: 'Image After',
+      viewImageAfter: 'View resolution image',
+      problemImageAfter: 'Problem Image (After)',
+      noImageAfter: 'No image (after)',
+      changeProblemStatus: 'Change problem status',
+      assignToMe: 'Assign to Me',
+      problemAssigned: 'Problem assigned successfully!',
+      responsible: 'Responsible'
+    }
+  };
+
+  // Utility Functions
+  function translate(key) {
+    return translations[currentLang][key] || key;
+  }
+
+  function formatDate(timestamp) {
+    if (!timestamp) return translate('noDate');
+    return new Date(timestamp).toLocaleString(currentLang, { dateStyle: 'medium', timeStyle: 'short' });
+  }
+
+  function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-6 right-6 px-6 py-3 text-white rounded-lg shadow-lg bg-${type === 'danger' ? 'red' : type === 'success' ? 'green' : type === 'warning' ? 'yellow' : 'blue'}-500 animate-slide-in z-50`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
+
+  // Admin Panel Initialization
+  setAdminPanelInitializer((uid) => {
+    userId = uid;
+    const problemsRef = ref(db, 'problems');
+    const problemsGrid = document.getElementById('problemsGrid');
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const urgencyFilter = document.getElementById('urgencyFilter');
+    const clearFilters = document.getElementById('clearFilters');
+    const sectionLinks = document.querySelectorAll('.nav-link[data-section]');
+    const sections = document.querySelectorAll('.section');
+    const langLinks = document.querySelectorAll('[data-lang]');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarOpen = document.getElementById('sidebarOpen');
+    const sidebar = document.getElementById('sidebar');
+    const langDropdown = document.getElementById('langDropdown');
+    const langMenu = document.getElementById('langMenu');
+    const themeToggle = document.getElementById('themeToggle');
+    const logoutButton = document.getElementById('logoutButton');
+    const resolutionImageModal = document.getElementById('resolutionImageModal');
+    const resolutionImageInput = document.getElementById('resolutionImageInput');
+    const resolutionImagePreview = document.getElementById('resolutionImagePreview');
+    const confirmResolutionUpload = document.getElementById('confirmResolutionUpload');
+    const cancelResolutionUpload = document.getElementById('cancelResolutionUpload');
+    const closeResolutionModal = document.getElementById('closeResolutionModal');
+
+    // Sidebar Toggle
+    sidebarOpen.addEventListener('click', () => {
+      sidebar.classList.remove('sidebar-hidden');
+      sidebarOpen.focus();
+    });
+    sidebarToggle.addEventListener('click', () => {
+      sidebar.classList.add('sidebar-hidden');
+      sidebarToggle.focus();
+    });
+
+    // Language Dropdown
+    langDropdown.addEventListener('click', () => {
+      const isHidden = langMenu.classList.toggle('hidden');
+      langDropdown.setAttribute('aria-expanded', !isHidden);
+    });
+
+    // Theme Toggle
+    themeToggle.addEventListener('click', () => {
+      const body = document.body;
+      const currentTheme = body.dataset.theme;
+      body.dataset.theme = currentTheme === 'light' ? 'dark' : 'light';
+      updateCharts();
+    });
+
+    // Logout
+    logoutButton.addEventListener('click', async () => {
+      try {
+        await signOut(auth);
+        window.location.href = '/login.html';
+      } catch (error) {
+        console.error('Erro ao sair:', error);
+        showToast(`${translate('errorLogout')} ${error.message}`, 'danger');
       }
-    };
+    });
 
-    // Utility Functions
-    function translate(key) {
-      return translations[currentLang][key] || key;
-    }
-
-    function formatDate(timestamp) {
-      if (!timestamp) return translate('noDate');
-      return new Date(timestamp).toLocaleString(currentLang, { dateStyle: 'medium', timeStyle: 'short' });
-    }
-
-    function showToast(message, type) {
-      const toast = document.createElement('div');
-      toast.className = `fixed bottom-6 right-6 px-6 py-3 text-white rounded-lg shadow-lg bg-${type === 'danger' ? 'red' : type === 'success' ? 'green' : type === 'warning' ? 'yellow' : 'blue'}-500 animate-slide-in z-50`;
-      toast.textContent = message;
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
-    }
-
-    // Service Worker for Notifications
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/firebase-messaging-sw.js')
-        .then(registration => {
-          console.log('Service Worker registrado:', registration);
-        })
-        .catch(error => {
-          console.error('Erro ao registrar Service Worker:', error);
-          showToast(translate('errorNotifications'), 'danger');
-        });
-    }
-
-    // Request Notification Permission
-    async function requestNotificationPermission() {
-      for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
-        try {
-          const permission = await Notification.requestPermission();
-          if (permission === 'granted') {
-            const token = await getToken(messaging, { vapidKey: 'BKnyjZ4OaEOqoOBovd2bu4f-SwrN6WDW6lkSwkd4BQj8RCY5xxQtWFnBSTRWgOksECGYLbVSl-bpJB-pq3yzkkk' });
-            document.getElementById('notificationStatus').textContent = translate('notificationsActive');
-            return;
-          }
-          throw new Error('Permissão negada');
-        } catch (error) {
-          if (attempt === RETRY_ATTEMPTS) {
-            document.getElementById('notificationStatus').textContent = translate('notificationsDisabled');
-            showToast(translate('notificationsDisabled'), 'warning');
-          }
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-        }
-      }
-    }
-
-    // Cloudinary Configuration
-    const cloudinaryConfig = {
-      cloudName: 'dlfukiusa',
-      apiKey: '438687859144979',
-      uploadPreset: 'fixabairro',
-      folder: 'fixa/resolved'
-    };
-
-    // Admin Panel Initialization
-    function initializeAdminPanel(userId) {
-      const problemsRef = ref(db, 'problems');
-      const problemsGrid = document.getElementById('problemsGrid');
-      const searchInput = document.getElementById('searchInput');
-      const statusFilter = document.getElementById('statusFilter');
-      const urgencyFilter = document.getElementById('urgencyFilter');
-      const clearFilters = document.getElementById('clearFilters');
-      const sectionLinks = document.querySelectorAll('.nav-link[data-section]');
-      const sections = document.querySelectorAll('.section');
-      const langLinks = document.querySelectorAll('[data-lang]');
-      const sidebarToggle = document.getElementById('sidebarToggle');
-      const sidebarOpen = document.getElementById('sidebarOpen');
-      const sidebar = document.getElementById('sidebar');
-      const langDropdown = document.getElementById('langDropdown');
-      const langMenu = document.getElementById('langMenu');
-      const themeToggle = document.getElementById('themeToggle');
-      const resolutionImageModal = document.getElementById('resolutionImageModal');
-      const resolutionImageInput = document.getElementById('resolutionImageInput');
-      const resolutionImagePreview = document.getElementById('resolutionImagePreview');
-      const confirmResolutionUpload = document.getElementById('confirmResolutionUpload');
-      const cancelResolutionUpload = document.getElementById('cancelResolutionUpload');
-      const closeResolutionModal = document.getElementById('closeResolutionModal');
-
-      // Sidebar Toggle
-      sidebarOpen.addEventListener('click', () => {
-        sidebar.classList.remove('sidebar-hidden');
-        sidebarOpen.focus();
-      });
-      sidebarToggle.addEventListener('click', () => {
-        sidebar.classList.add('sidebar-hidden');
-        sidebarToggle.focus();
-      });
-
-      // Language Dropdown
-      langDropdown.addEventListener('click', () => {
-        const isHidden = langMenu.classList.toggle('hidden');
-        langDropdown.setAttribute('aria-expanded', !isHidden);
-      });
-
-      // Theme Toggle
-      themeToggle.addEventListener('click', () => {
-        const body = document.body;
-        const currentTheme = body.dataset.theme;
-        body.dataset.theme = currentTheme === 'light' ? 'dark' : 'light';
-        updateCharts();
-      });
-
-      // Load Problems
-      onValue(problemsRef, snapshot => {
-        allProblems = [];
-        if (!snapshot.exists()) {
-          problemsGrid.innerHTML = `<p class="col-span-full text-center text-gray-500">${translate('noProblems')}</p>`;
-          renderPagination();
-          updateDashboard();
-          return;
-        }
-
-        allProblems = Object.entries(snapshot.val())
-          .filter(([_, problem]) => problem.responsibleId === userId)
-          .map(([id, problem]) => ({ id, ...problem }));
-
-        if (!allProblems.length) {
-          problemsGrid.innerHTML = `<p class="col-span-full text-center text-gray-500">${translate('noProblemsAssigned')}</p>`;
-        }
-
-        renderProblems();
-        updateDashboard();
-      }, error => {
-        problemsGrid.innerHTML = `<p class="col-span-full text-center text-red-500">${translate('errorLoading')}</p>`;
-        showToast(translate('errorLoading'), 'danger');
-      });
-
-      // Render Problems
-      function renderProblems() {
-        const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        const end = start + ITEMS_PER_PAGE;
-        const filteredProblems = filterProblems();
-        const paginatedProblems = filteredProblems.slice(start, end);
-        problemsGrid.innerHTML = '';
-
-        if (paginatedProblems.length === 0 && filteredProblems.length > 0) {
-          currentPage = 1;
-          renderProblems();
-          return;
-        }
-        if (paginatedProblems.length === 0 && filteredProblems.length === 0) {
-          problemsGrid.innerHTML = `<p class="col-span-full text-center text-gray-500">${translate('noProblemsAssigned')}</p>`;
-          renderPagination();
-          return;
-        }
-
-        for (const problem of paginatedProblems) {
-          const createdAt = formatDate(problem.createdAt);
-          const urgencyClass = problem.urgency === 'Alta' ? 'text-red-500' : problem.urgency === 'Média' ? 'text-yellow-500' : 'text-green-500';
-          problemsGrid.innerHTML += `
-            <div class="bg-white p-6 rounded-xl shadow-lg card-hover transition-all">
-              <h3 class="text-xl font-semibold text-gray-800">${problem.title || translate('noTitle')}</h3>
-              <p class="text-gray-600 mt-2"><strong>${translate('description')}:</strong> ${problem.description || translate('noDescription')}</p>
-              <p class="text-gray-600"><strong>${translate('municipality')}:</strong> ${problem.location?.municipality || translate('noMunicipality')}</p>
-              <p class="text-gray-600"><strong>${translate('neighborhood')}:</strong> ${problem.location?.neighborhood || translate('noNeighborhood')}</p>
-              <p class="text-gray-600"><strong>${translate('category')}:</strong> ${problem.category || translate('noCategory')}</p>
-              <p class="text-gray-600"><strong>${translate('urgency')}:</strong> <span class="${urgencyClass} font-medium">${problem.urgency || translate('noUrgency')}</span></p>
-              <p class="text-gray-600"><strong>${translate('status')}:</strong> ${problem.status || translate('noStatus')}</p>
-              <p class="text-gray-600"><strong>${translate('suggestion')}:</strong> ${problem.suggestion || translate('noSuggestion')}</p>
-              <p class="text-gray-600"><strong>${translate('createdAt')}:</strong> ${createdAt}</p>
-              ${problem.imageUrlBefore ? `
-                <p class="text-gray-600 mt-4"><strong>${translate('imageBefore')}:</strong></p>
-                <a href="${problem.imageUrlBefore}" target="_blank" aria-label="${translate('viewImageBefore')}">
-                  <img src="${problem.imageUrlBefore}" loading="lazy" alt="${translate('problemImageBefore')}" class="mt-2 rounded-lg max-h-48 w-full object-cover">
-                </a>` : `<p class="text-gray-500 mt-4">${translate('noImageBefore')}</p>`}
-              ${problem.imageUrlAfter ? `
-                <p class="text-gray-600 mt-4"><strong>${translate('imageAfter')}:</strong></p>
-                <a href="${problem.imageUrlAfter}" target="_blank" aria-label="${translate('viewImageAfter')}">
-                  <img src="${problem.imageUrlAfter}" loading="lazy" alt="${translate('problemImageAfter')}" class="mt-2 rounded-lg max-h-48 w-full object-cover">
-                </a>` : `<p class="text-gray-500 mt-4">${translate('noImageAfter')}</p>`}
-              <div class="mt-6 flex space-x-3">
-                <select class="border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="handleStatusChange('${problem.id}', this.value)" aria-label="${translate('changeProblemStatus')}">
-                  <option value="Aguardando" ${problem.status === 'Aguardando' ? 'selected' : ''}>${translate('pending')}</option>
-                  <option value="Em Andamento" ${problem.status === 'Em Andamento' ? 'selected' : ''}>${translate('inProgress')}</option>
-                  <option value="Resolvido" ${problem.status === 'Resolvido' ? 'selected' : ''}>${translate('resolved')}</option>
-                </select>
-              </div>
-            </div>
-          `;
-        }
+    // Load Problems
+    onValue(problemsRef, snapshot => {
+      allProblems = [];
+      if (!snapshot.exists()) {
+        problemsGrid.innerHTML = `<p class="col-span-full text-center text-gray-500">${translate('noProblems')}</p>`;
         renderPagination();
-        updateLanguage();
+        updateDashboard();
+        return;
       }
 
-      // Filter Problems
-      function filterProblems() {
-        const searchText = searchInput.value.toLowerCase();
-        const status = statusFilter.value;
-        const urgency = urgencyFilter.value;
+      allProblems = Object.entries(snapshot.val()).map(([id, problem]) => ({ id, ...problem }));
 
-        return allProblems.filter(problem => {
-          const matchesSearch = (problem.title?.toLowerCase().includes(searchText) || problem.description?.toLowerCase().includes(searchText));
-          const matchesStatus = !status || problem.status === status;
-          const matchesUrgency = !urgency || problem.urgency === urgency;
-          return matchesSearch && matchesStatus && matchesUrgency;
-        });
+      if (!allProblems.length) {
+        problemsGrid.innerHTML = `<p class="col-span-full text-center text-gray-500">${translate('noProblems')}</p>`;
       }
 
-      // Pagination
-      function renderPagination() {
-        const totalPages = Math.ceil(filterProblems().length / ITEMS_PER_PAGE);
-        const pagination = document.getElementById('pagination');
-        pagination.innerHTML = '';
+      renderProblems();
+      updateDashboard();
+    }, error => {
+      problemsGrid.innerHTML = `<p class="col-span-full text-center text-red-500">${translate('errorLoading')}</p>`;
+      showToast(translate('errorLoading'), 'danger');
+    });
 
-        if (totalPages <= 1) return;
+    // Render Problems
+    function renderProblems() {
+      const start = (currentPage - 1) * ITEMS_PER_PAGE;
+      const end = start + ITEMS_PER_PAGE;
+      const filteredProblems = filterProblems();
+      const paginatedProblems = filteredProblems.slice(start, end);
+      problemsGrid.innerHTML = '';
 
-        pagination.innerHTML += `
-          <li><a href="#" class="px-4 py-2 rounded-lg ${currentPage === 1 ? 'bg-gray-300' : 'bg-blue-500 text-white'} hover:bg-blue-600 transition-colors" data-page="${currentPage - 1}" aria-label="${translate('previousPage')}">${translate('previous')}</a></li>
+      if (paginatedProblems.length === 0 && filteredProblems.length > 0) {
+        currentPage = 1;
+        renderProblems();
+        return;
+      }
+      if (paginatedProblems.length === 0 && filteredProblems.length === 0) {
+        problemsGrid.innerHTML = `<p class="col-span-full text-center text-gray-500">${translate('noProblems')}</p>`;
+        renderPagination();
+        return;
+      }
+
+      for (const problem of paginatedProblems) {
+        const createdAt = formatDate(problem.createdAt);
+        const urgencyClass = problem.urgency === 'Alta' ? 'text-red-500' : problem.urgency === 'Média' ? 'text-yellow-500' : 'text-green-500';
+        problemsGrid.innerHTML += `
+          <div class="bg-white p-6 rounded-xl shadow-lg card-hover transition-all">
+            <h3 class="text-xl font-semibold text-gray-800">${problem.title || translate('noTitle')}</h3>
+            <p class="text-gray-600 mt-2"><strong>${translate('description')}:</strong> ${problem.description || translate('noDescription')}</p>
+            <p class="text-gray-600"><strong>${translate('municipality')}:</strong> ${problem.location?.municipality || translate('noMunicipality')}</p>
+            <p class="text-gray-600"><strong>${translate('neighborhood')}:</strong> ${problem.location?.neighborhood || translate('noNeighborhood')}</p>
+            <p class="text-gray-600"><strong>${translate('category')}:</strong> ${problem.category || translate('noCategory')}</p>
+            <p class="text-gray-600"><strong>${translate('urgency')}:</strong> <span class="${urgencyClass} font-medium">${problem.urgency || translate('noUrgency')}</span></p>
+            <p class="text-gray-600"><strong>${translate('status')}:</strong> ${problem.status || translate('noStatus')}</p>
+            <p class="text-gray-600"><strong>${translate('suggestion')}:</strong> ${problem.suggestion || translate('noSuggestion')}</p>
+            <p class="text-gray-600"><strong>${translate('createdAt')}:</strong> ${createdAt}</p>
+            <p class="text-gray-600"><strong>${translate('responsible')}:</strong> ${problem.responsibleId === userId ? 'Você' : problem.responsibleId === 'N/A' ? 'Não atribuído' : problem.responsibleId}</p>
+            ${problem.responsibleId === 'N/A' ? `
+              <button class="assign-button bg-blue-500 text-white rounded-lg p-2 mt-2 hover:bg-blue-600 transition-colors" data-problem-id="${problem.id}" aria-label="${translate('assignToMe')}">${translate('assignToMe')}</button>
+            ` : ''}
+            ${problem.imageUrlBefore ? `
+              <p class="text-gray-600 mt-4"><strong>${translate('imageBefore')}:</strong></p>
+              <a href="${problem.imageUrlBefore}" target="_blank" aria-label="${translate('viewImageBefore')}">
+                <img src="${problem.imageUrlBefore}" loading="lazy" alt="${translate('problemImageBefore')}" class="mt-2 rounded-lg max-h-48 w-full object-cover">
+              </a>` : `<p class="text-gray-500 mt-4">${translate('noImageBefore')}</p>`}
+            ${problem.imageUrlAfter ? `
+              <p class="text-gray-600 mt-4"><strong>${translate('imageAfter')}:</strong></p>
+              <a href="${problem.imageUrlAfter}" target="_blank" aria-label="${translate('viewImageAfter')}">
+                <img src="${problem.imageUrlAfter}" loading="lazy" alt="${translate('problemImageAfter')}" class="mt-2 rounded-lg max-h-48 w-full object-cover">
+              </a>` : `<p class="text-gray-500 mt-4">${translate('noImageAfter')}</p>`}
+            <div class="mt-6 flex space-x-3">
+              <select class="border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="handleStatusChange('${problem.id}', this.value)" aria-label="${translate('changeProblemStatus')}">
+                <option value="Aguardando" ${problem.status === 'Aguardando' ? 'selected' : ''}>${translate('pending')}</option>
+                <option value="Em Andamento" ${problem.status === 'Em Andamento' ? 'selected' : ''}>${translate('inProgress')}</option>
+                <option value="Resolvido" ${problem.status === 'Resolvido' ? 'selected' : ''}>${translate('resolved')}</option>
+              </select>
+            </div>
+          </div>
         `;
+      }
+      renderPagination();
+      updateLanguage();
+    }
 
-        for (let i = 1; i <= totalPages; i++) {
-          pagination.innerHTML += `
-            <li><a href="#" class="px-4 py-2 rounded-lg ${currentPage === i ? 'bg-blue-500 text-white' : 'bg-gray-200'} hover:bg-blue-600 hover:text-white transition-colors" data-page="${i}" aria-label="${translate('page')} ${i}">${i}</a></li>
-          `;
+    // Assign Problem
+    problemsGrid.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('assign-button')) {
+        const problemId = e.target.dataset.problemId;
+        try {
+          await update(ref(db, `problems/${problemId}`), { responsibleId: userId });
+          showToast(translate('problemAssigned'), 'success');
+        } catch (error) {
+          console.error('Erro ao atribuir problema:', error);
+          showToast(`${translate('errorUpdate')} ${error.message}`, 'danger');
+        }
+      }
+    });
+
+    // Status Update & WhatsApp Notification
+    window.handleStatusChange = async (problemId, newStatus) => {
+      try {
+        // Atualizar o status no Realtime Database
+        await update(ref(db, `problems/${problemId}`), { status: newStatus });
+        showToast(translate('statusUpdated'), 'success');
+
+        // Obter dados do problema
+        const problemRef = ref(db, `problems/${problemId}`);
+        const problemSnapshot = await new Promise((resolve, reject) => {
+          onValue(problemRef, resolve, reject, { onlyOnce: true });
+        });
+        const problemData = problemSnapshot.val();
+
+        if (!problemData || !problemData.userId) {
+          console.warn(`Problema ${problemId} não tem userId. Notificação WhatsApp não enviada.`);
+          return;
         }
 
+        // Obter dados do usuário no Firestore
+        const userDocRef = doc(firestore, 'usuarios', problemData.userId);
+        const userDoc = await getDoc(userDocRef);
+
+        if (!userDoc.exists()) {
+          console.warn(`Usuário ${problemData.userId} não encontrado no Firestore. Notificação WhatsApp não enviada.`);
+          return;
+        }
+
+        const userData = userDoc.data();
+        if (!userData.notificationPreferences?.whatsapp || !userData.phoneNumber) {
+          console.log(`Notificações WhatsApp desativadas ou número ausente para usuário ${problemData.userId}.`);
+          return;
+        }
+
+        // Chamar Cloud Function para enviar notificação WhatsApp
+        const sendWhatsAppNotification = httpsCallable(functions, 'sendWhatsAppNotification');
+        const notificationPayload = {
+          phoneNumber: userData.phoneNumber,
+          problemId,
+          problemTitle: problemData.title || translate('noTitle'),
+          newStatus: translate(newStatus.toLowerCase().replace(/ /g, '')),
+          language: currentLang
+        };
+        console.log('Enviando notificação WhatsApp:', notificationPayload);
+
+        const result = await sendWhatsAppNotification(notificationPayload);
+        console.log(`Notificação WhatsApp enviada com sucesso para ${userData.phoneNumber}:`, result.data);
+
+      } catch (error) {
+        console.error('Erro ao atualizar status ou enviar notificação WhatsApp:', error);
+        showToast(`${translate('errorUpdate')} ${error.message}`, 'danger');
+      }
+
+      // Abrir modal de upload de imagem se status for "Resolvido"
+      if (newStatus === 'Resolvido') {
+        currentProblemIdForImage = problemId;
+        resolutionImageInput.value = '';
+        resolutionImagePreview.src = '';
+        resolutionImagePreview.classList.add('hidden');
+        resolutionImageModal.classList.remove('hidden');
+        resolutionImageInput.focus();
+      }
+    };
+
+    // Filter Problems
+    function filterProblems() {
+      const searchText = searchInput.value.toLowerCase();
+      const status = statusFilter.value;
+      const urgency = urgencyFilter.value;
+
+      return allProblems.filter(problem => {
+        const matchesSearch = (problem.title?.toLowerCase().includes(searchText) || problem.description?.toLowerCase().includes(searchText));
+        const matchesStatus = !status || problem.status === status;
+        const matchesUrgency = !urgency || problem.urgency === urgency;
+        return matchesSearch && matchesStatus && matchesUrgency;
+      });
+    }
+
+    // Pagination
+    function renderPagination() {
+      const totalPages = Math.ceil(filterProblems().length / ITEMS_PER_PAGE);
+      const pagination = document.getElementById('pagination');
+      pagination.innerHTML = '';
+
+      if (totalPages <= 1) return;
+
+      pagination.innerHTML += `
+        <li><a href="#" class="px-4 py-2 rounded-lg ${currentPage === 1 ? 'bg-gray-300' : 'bg-blue-500 text-white'} hover:bg-blue-600 transition-colors" data-page="${currentPage - 1}" aria-label="${translate('previousPage')}">${translate('previous')}</a></li>
+      `;
+
+      for (let i = 1; i <= totalPages; i++) {
         pagination.innerHTML += `
-          <li><a href="#" class="px-4 py-2 rounded-lg ${currentPage === totalPages ? 'bg-gray-300' : 'bg-blue-500 text-white'} hover:bg-blue-600 transition-colors" data-page="${currentPage + 1}" aria-label="${translate('nextPage')}">${translate('next')}</a></li>
+          <li><a href="#" class="px-4 py-2 rounded-lg ${currentPage === i ? 'bg-blue-500 text-white' : 'bg-gray-200'} hover:bg-blue-600 hover:text-white transition-colors" data-page="${i}" aria-label="${translate('page')} ${i}">${i}</a></li>
         `;
+      }
 
-        pagination.querySelectorAll('a[data-page]').forEach(link => {
-          link.addEventListener('click', e => {
-            e.preventDefault();
-            const page = parseInt(e.target.dataset.page);
-            if (page && page !== currentPage) {
-              currentPage = page;
-              renderProblems();
-            }
-          });
+      pagination.innerHTML += `
+        <li><a href="#" class="px-4 py-2 rounded-lg ${currentPage === totalPages ? 'bg-gray-300' : 'bg-blue-500 text-white'} hover:bg-blue-600 transition-colors" data-page="${currentPage + 1}" aria-label="${translate('nextPage')}">${translate('next')}</a></li>
+      `;
+
+      pagination.querySelectorAll('a[data-page]').forEach(link => {
+        link.addEventListener('click', e => {
+          e.preventDefault();
+          const page = parseInt(e.target.dataset.page);
+          if (page && page !== currentPage) {
+            currentPage = page;
+            renderProblems();
+          }
         });
-      }
+      });
+    }
 
-      // Update Dashboard
-      function updateDashboard() {
-        const pendingCount = allProblems.filter(p => p.status === 'Aguardando').length;
-        const resolvedCount = allProblems.filter(p => p.status === 'Resolvido').length;
-        const highUrgencyCount = allProblems.filter(p => p.urgency === 'Alta').length;
+    // Update Dashboard
+    function updateDashboard() {
+      const pendingCount = allProblems.filter(p => p.status === 'Aguardando').length;
+      const resolvedCount = allProblems.filter(p => p.status === 'Resolvido').length;
+      const highUrgencyCount = allProblems.filter(p => p.urgency === 'Alta').length;
 
-        document.getElementById('pendingCount').textContent = pendingCount;
-        document.getElementById('resolvedCount').textContent = resolvedCount;
-        document.getElementById('highUrgencyCount').textContent = highUrgencyCount;
+      document.getElementById('pendingCount').textContent = pendingCount;
+      document.getElementById('resolvedCount').textContent = resolvedCount;
+      document.getElementById('highUrgencyCount').textContent = highUrgencyCount;
 
+      updateCharts();
+    }
+
+    // Update Charts
+    function updateCharts() {
+      const stats = {
+        byStatus: { Aguardando: 0, 'Em Andamento': 0, Resolvido: 0 },
+        byUrgency: { Baixa: 0, Média: 0, Alta: 0 }
+      };
+
+      allProblems.forEach(problem => {
+        stats.byStatus[problem.status] = (stats.byStatus[problem.status] || 0) + 1;
+        stats.byUrgency[problem.urgency] = (stats.byUrgency[problem.urgency] || 0) + 1;
+      });
+
+      const isDarkMode = document.body.dataset.theme === 'dark';
+      const chartColors = {
+        status: ['#ffc107', '#007bff', '#28a745'],
+        urgency: ['#28a745', '#ffc107', '#dc3545'],
+        background: isDarkMode ? '#374151' : '#ffffff',
+        text: isDarkMode ? '#f3f4f6' : '#1f2937'
+      };
+
+      if (charts.statusChart) charts.statusChart.destroy();
+      if (charts.urgencyChart) charts.urgencyChart.destroy();
+
+      charts.statusChart = new Chart(document.getElementById('statusChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(stats.byStatus).map(key => translate(key.replace(/ /g, '').toLowerCase()) || key),
+          datasets: [{
+            data: Object.values(stats.byStatus),
+            backgroundColor: chartColors.status,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top', labels: { color: chartColors.text, font: { size: 14 } } },
+            title: { display: true, text: translate('problemsByStatus'), color: chartColors.text, font: { size: 16 } }
+          }
+        }
+      });
+
+      charts.urgencyChart = new Chart(document.getElementById('urgencyChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(stats.byUrgency).map(key => translate(key.toLowerCase()) || key),
+          datasets: [{
+            label: translate('problems'),
+            data: Object.values(stats.byUrgency),
+            backgroundColor: chartColors.urgency,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, ticks: { color: chartColors.text, font: { size: 12 } } },
+            x: { ticks: { color: chartColors.text, font: { size: 12 } } }
+          },
+          plugins: {
+            legend: { display: false },
+            title: { display: true, text: translate('problemsByUrgency'), color: chartColors.text, font: { size: 16 } }
+          }
+        }
+      });
+    }
+
+    // Event Listeners for Filters
+    searchInput.addEventListener('input', () => { currentPage = 1; renderProblems(); });
+    statusFilter.addEventListener('change', () => { currentPage = 1; renderProblems(); });
+    urgencyFilter.addEventListener('change', () => { currentPage = 1; renderProblems(); });
+    clearFilters.addEventListener('click', () => {
+      searchInput.value = '';
+      statusFilter.value = '';
+      urgencyFilter.value = '';
+      currentPage = 1;
+      renderProblems();
+    });
+
+    // Section Toggle
+    sectionLinks.forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const section = link.dataset.section;
+        sections.forEach(s => s.classList.add('hidden'));
+        document.getElementById(`${section}Section`).classList.remove('hidden');
+        sectionLinks.forEach(l => l.classList.remove('bg-gray-600', 'text-white'));
+        link.classList.add('bg-gray-600', 'text-white');
+        if (section === 'reports') loadReports(parseInt(document.getElementById('reportPeriod').value || DEFAULT_REPORT_PERIOD_DAYS));
+        else if (section === 'dashboard') updateDashboard();
+        sidebar.classList.add('sidebar-hidden');
+      });
+    });
+
+    // Language Switch
+    langLinks.forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        currentLang = link.dataset.lang;
+        langMenu.classList.add('hidden');
+        langDropdown.setAttribute('aria-expanded', 'false');
+        updateLanguage();
+        renderProblems();
+        if (!document.getElementById('reportsSection').classList.contains('hidden')) {
+          loadReports(parseInt(document.getElementById('reportPeriod').value));
+        }
         updateCharts();
-      }
+      });
+    });
 
-      // Update Charts
-      function updateCharts() {
+    // Reports
+    async function loadReports(periodDays) {
+      try {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - periodDays);
+        const q = query(collection(firestore, 'relatorios_problemas'), where('createdAt', '>=', startDate.getTime()));
+        console.log('Consultando relatórios para período:', periodDays, 'dias, a partir de:', startDate);
+        const querySnapshot = await getDocs(q);
+        console.log('Documentos encontrados:', querySnapshot.size);
         const stats = {
           byStatus: { Aguardando: 0, 'Em Andamento': 0, Resolvido: 0 },
           byUrgency: { Baixa: 0, Média: 0, Alta: 0 }
         };
 
-        allProblems.forEach(problem => {
-          stats.byStatus[problem.status] = (stats.byStatus[problem.status] || 0) + 1;
-          stats.byUrgency[problem.urgency] = (stats.byUrgency[problem.urgency] || 0) + 1;
+        querySnapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.responsibleId !== userId) return;
+          stats.byStatus[data.status] = (stats.byStatus[data.status] || 0) + 1;
+          stats.byUrgency[data.urgency] = (stats.byUrgency[data.urgency] || 0) + 1;
         });
 
         const isDarkMode = document.body.dataset.theme === 'dark';
@@ -731,11 +868,11 @@
           text: isDarkMode ? '#f3f4f6' : '#1f2937'
         };
 
-        if (charts.statusChart) charts.statusChart.destroy();
-        if (charts.urgencyChart) charts.urgencyChart.destroy();
+        if (charts.statusChartReports) charts.statusChartReports.destroy();
+        if (charts.urgencyChartReports) charts.urgencyChartReports.destroy();
 
-        charts.statusChart = new Chart(document.getElementById('statusChart').getContext('2d'), {
-          type: 'doughnut',
+        charts.statusChartReports = new Chart(document.getElementById('statusChartReports').getContext('2d'), {
+          type: 'pie',
           data: {
             labels: Object.keys(stats.byStatus).map(key => translate(key.replace(/ /g, '').toLowerCase()) || key),
             datasets: [{
@@ -754,7 +891,7 @@
           }
         });
 
-        charts.urgencyChart = new Chart(document.getElementById('urgencyChart').getContext('2d'), {
+        charts.urgencyChartReports = new Chart(document.getElementById('urgencyChartReports').getContext('2d'), {
           type: 'bar',
           data: {
             labels: Object.keys(stats.byUrgency).map(key => translate(key.toLowerCase()) || key),
@@ -778,352 +915,153 @@
             }
           }
         });
+        updateLanguage();
+      } catch (error) {
+        console.error('Erro ao carregar relatórios:', error);
+        showToast(translate('errorReports'), 'danger');
       }
-
-      // Event Listeners for Filters
-      searchInput.addEventListener('input', () => { currentPage = 1; renderProblems(); });
-      statusFilter.addEventListener('change', () => { currentPage = 1; renderProblems(); });
-      urgencyFilter.addEventListener('change', () => { currentPage = 1; renderProblems(); });
-      clearFilters.addEventListener('click', () => {
-        searchInput.value = '';
-        statusFilter.value = '';
-        urgencyFilter.value = '';
-        currentPage = 1;
-        renderProblems();
-      });
-
-      // Section Toggle
-      sectionLinks.forEach(link => {
-        link.addEventListener('click', e => {
-          e.preventDefault();
-          const section = link.dataset.section;
-          sections.forEach(s => s.classList.add('hidden'));
-          document.getElementById(`${section}Section`).classList.remove('hidden');
-          sectionLinks.forEach(l => l.classList.remove('bg-gray-600', 'text-white'));
-          link.classList.add('bg-gray-600', 'text-white');
-          if (section === 'reports') loadReports(parseInt(document.getElementById('reportPeriod').value || DEFAULT_REPORT_PERIOD_DAYS));
-          else if (section === 'dashboard') updateDashboard();
-          sidebar.classList.add('sidebar-hidden');
-        });
-      });
-
-      // Language Switch
-      langLinks.forEach(link => {
-        link.addEventListener('click', e => {
-          e.preventDefault();
-          currentLang = link.dataset.lang;
-          langMenu.classList.add('hidden');
-          langDropdown.setAttribute('aria-expanded', 'false');
-          updateLanguage();
-          renderProblems();
-          if (!document.getElementById('reportsSection').classList.contains('hidden')) {
-            loadReports(parseInt(document.getElementById('reportPeriod').value));
-          }
-          updateCharts();
-        });
-      });
-
-      // Status Update & WhatsApp Notification
-      window.handleStatusChange = async (problemId, newStatus) => {
-        try {
-          // Atualizar o status no Realtime Database
-          await update(ref(db, `problems/${problemId}`), { status: newStatus });
-          showToast(translate('statusUpdated'), 'success');
-
-          // Obter dados do problema para notificação
-          const problemRef = ref(db, `problems/${problemId}`);
-          const problemSnapshot = await new Promise((resolve, reject) => {
-            onValue(problemRef, resolve, reject, { onlyOnce: true });
-          });
-          const problemData = problemSnapshot.val();
-
-          if (!problemData || !problemData.userId) {
-            console.warn(`Problema ${problemId} não tem userId associado. Notificação não enviada.`);
-          } else {
-            // Obter dados do usuário do Firestore
-            const userDocRef = doc(firestore, 'usuarios', problemData.userId);
-            const userDoc = await getDoc(userDocRef);
-
-            if (!userDoc.exists()) {
-              console.warn(`Usuário ${problemData.userId} não encontrado no Firestore. Notificação não enviada.`);
-            } else {
-              const userData = userDoc.data();
-              if (userData.notificationPreferences?.whatsapp && userData.phoneNumber) {
-                // Validar número de telefone
-                const phoneRegex = /^\+\d{10,15}$/;
-                if (!phoneRegex.test(userData.phoneNumber)) {
-                  console.warn(`Número de telefone inválido: ${userData.phoneNumber}`);
-                } else {
-                  // Chamar Cloud Function para enviar notificação WhatsApp
-                  const sendWhatsAppNotification = httpsCallable(functions, 'sendWhatsAppNotification');
-                  try {
-                    await sendWhatsAppNotification({
-                      phoneNumber: userData.phoneNumber,
-                      problemId,
-                      problemTitle: problemData.title || translate('noTitle'),
-                      newStatus: translate(newStatus.toLowerCase().replace(/ /g, '')),
-                      language: currentLang
-                    });
-                    console.log(`Notificação WhatsApp enviada para ${userData.phoneNumber} sobre o problema ${problemId}`);
-                  } catch (error) {
-                    console.error(`Erro ao enviar notificação WhatsApp: ${error.message}`);
-                    showToast(`Erro ao enviar notificação WhatsApp: ${error.message}`, 'danger');
-                  }
-                }
-              } else {
-                console.log(`Notificações WhatsApp desativadas ou número de telefone ausente para o usuário ${problemData.userId}`);
-              }
-            }
-          }
-
-          // Abrir modal de upload de imagem se status for "Resolvido"
-          if (newStatus === 'Resolvido') {
-            currentProblemIdForImage = problemId;
-            resolutionImageInput.value = '';
-            resolutionImagePreview.src = '';
-            resolutionImagePreview.classList.add('hidden');
-            resolutionImageModal.classList.remove('hidden');
-            resolutionImageInput.focus();
-          }
-        } catch (error) {
-          console.error('Erro ao atualizar status ou enviar notificação:', error);
-          showToast(`${translate('errorUpdate')} ${error.message}`, 'danger');
-        }
-      };
-
-      // Event listener for image input change (preview)
-      resolutionImageInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            resolutionImagePreview.src = event.target.result;
-            resolutionImagePreview.classList.remove('hidden');
-          };
-          reader.readAsDataURL(file);
-        } else {
-          resolutionImagePreview.src = '';
-          resolutionImagePreview.classList.add('hidden');
-        }
-      });
-
-      // Event listener for uploading image
-      confirmResolutionUpload.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const file = resolutionImageInput.files[0];
-        if (!file) {
-          showToast(translate('selectImage'), 'warning');
-          return;
-        }
-        if (!currentProblemIdForImage) {
-          showToast('Erro: ID do problema não encontrado para upload.', 'danger');
-          return;
-        }
-        // Validate file type and size
-        if (!file.type.startsWith('image/')) {
-          showToast('Por favor, selecione uma imagem válida.', 'warning');
-          return;
-        }
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
-          showToast('A imagem deve ser menor que 5MB.', 'warning');
-          return;
-        }
-        showToast(translate('uploadingImage'), 'info');
-        confirmResolutionUpload.disabled = true;
-        try {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('upload_preset', cloudinaryConfig.uploadPreset);
-          formData.append('folder', cloudinaryConfig.folder);
-          const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryConfig.cloudName}/image/upload`, {
-            method: 'POST',
-            body: formData,
-          });
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`Cloudinary error: ${errorData.error.message || response.statusText}`);
-          }
-          const data = await response.json();
-          const imageUrlAfter = data.secure_url;
-          await update(ref(db, `problems/${currentProblemIdForImage}`), { imageUrlAfter: imageUrlAfter });
-          showToast(translate('imageUploadedSuccess'), 'success');
-          resolutionImageModal.classList.add('hidden');
-          confirmResolutionUpload.disabled = false;
-          currentProblemIdForImage = null;
-          resolutionImageInput.value = '';
-          resolutionImagePreview.src = '';
-          resolutionImagePreview.classList.add('hidden');
-        } catch (error) {
-          console.error('Cloudinary upload error:', error);
-          showToast(`${translate('imageUploadError')} ${error.message}`, 'danger');
-          confirmResolutionUpload.disabled = false;
-        }
-      });
-
-      // Modal close buttons for resolution image modal
-      cancelResolutionUpload.addEventListener('click', () => resolutionImageModal.classList.add('hidden'));
-      closeResolutionModal.addEventListener('click', () => resolutionImageModal.classList.add('hidden'));
-
-      // Keyboard navigation for resolution image modal
-      document.addEventListener('keydown', e => {
-        if (e.key === 'Escape' && !resolutionImageModal.classList.contains('hidden')) {
-          resolutionImageModal.classList.add('hidden');
-          closeResolutionModal.focus();
-        }
-      });
-
-      // Reports
-      async function loadReports(periodDays) {
-        try {
-          const startDate = new Date();
-          startDate.setDate(startDate.getDate() - periodDays);
-          const q = query(collection(firestore, 'relatorios_problemas'), where('createdAt', '>=', startDate.getTime()));
-          const querySnapshot = await getDocs(q);
-          const stats = {
-            byStatus: { Aguardando: 0, 'Em Andamento': 0, Resolvido: 0 },
-            byUrgency: { Baixa: 0, Média: 0, Alta: 0 }
-          };
-
-          querySnapshot.forEach(doc => {
-            const data = doc.data();
-            if (data.responsibleId !== userId) return;
-            stats.byStatus[data.status] = (stats.byStatus[data.status] || 0) + 1;
-            stats.byUrgency[data.urgency] = (stats.byUrgency[data.urgency] || 0) + 1;
-          });
-
-          const isDarkMode = document.body.dataset.theme === 'dark';
-          const chartColors = {
-            status: ['#ffc107', '#007bff', '#28a745'],
-            urgency: ['#28a745', '#ffc107', '#dc3545'],
-            background: isDarkMode ? '#374151' : '#ffffff',
-            text: isDarkMode ? '#f3f4f6' : '#1f2937'
-          };
-
-          if (charts.statusChartReports) charts.statusChartReports.destroy();
-          if (charts.urgencyChartReports) charts.urgencyChartReports.destroy();
-
-          charts.statusChartReports = new Chart(document.getElementById('statusChartReports').getContext('2d'), {
-            type: 'pie',
-            data: {
-              labels: Object.keys(stats.byStatus).map(key => translate(key.replace(/ /g, '').toLowerCase()) || key),
-              datasets: [{
-                data: Object.values(stats.byStatus),
-                backgroundColor: chartColors.status,
-                borderWidth: 0
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { position: 'top', labels: { color: chartColors.text, font: { size: 14 } } },
-                title: { display: true, text: translate('problemsByStatus'), color: chartColors.text, font: { size: 16 } }
-              }
-            }
-          });
-
-          charts.urgencyChartReports = new Chart(document.getElementById('urgencyChartReports').getContext('2d'), {
-            type: 'bar',
-            data: {
-              labels: Object.keys(stats.byUrgency).map(key => translate(key.toLowerCase()) || key),
-              datasets: [{
-                label: translate('problems'),
-                data: Object.values(stats.byUrgency),
-                backgroundColor: chartColors.urgency,
-                borderRadius: 4
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: {
-                y: { beginAtZero: true, ticks: { color: chartColors.text, font: { size: 12 } } },
-                x: { ticks: { color: chartColors.text, font: { size: 12 } } }
-              },
-              plugins: {
-                legend: { display: false },
-                title: { display: true, text: translate('problemsByUrgency'), color: chartColors.text, font: { size: 16 } }
-              }
-            }
-          });
-          updateLanguage();
-        } catch (error) {
-          showToast(translate('errorReports'), 'danger');
-          console.error('Erro ao carregar relatórios:', error);
-        }
-      }
-
-      // Notifications for New Problems
-      onChildAdded(ref(db, 'problems'), snapshot => {
-        const problem = snapshot.val();
-        if (problem.responsibleId !== userId || Notification.permission !== 'granted') return;
-        new Notification(translate('newProblem'), {
-          body: `${problem.title || translate('noTitle')} - ${problem.description || translate('noDescription')}`,
-          icon: '/assets/icons/Icon-192.png'
-        });
-      });
-
-      // Report Period Change
-      document.getElementById('reportPeriod').addEventListener('change', e => loadReports(parseInt(e.target.value)));
-
-      // Function to update language for all data-i18n elements
-      function updateLanguage() {
-        document.querySelectorAll('[data-i18n]').forEach(element => {
-          const key = element.dataset.i18n;
-          element.textContent = translate(key);
-        });
-
-        document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
-          const key = element.dataset.i18nPlaceholder;
-          element.placeholder = translate(key);
-        });
-
-        const statusFilterOptions = document.getElementById('statusFilter')?.querySelectorAll('option');
-        if (statusFilterOptions) {
-          statusFilterOptions[0].textContent = translate('allStatuses');
-          statusFilterOptions[1].textContent = translate('pending');
-          statusFilterOptions[2].textContent = translate('inProgress');
-          statusFilterOptions[3].textContent = translate('resolved');
-        }
-
-        const urgencyFilterOptions = document.getElementById('urgencyFilter')?.querySelectorAll('option');
-        if (urgencyFilterOptions) {
-          urgencyFilterOptions[0].textContent = translate('allUrgencies');
-          urgencyFilterOptions[1].textContent = translate('low');
-          urgencyFilterOptions[2].textContent = translate('medium');
-          urgencyFilterOptions[3].textContent = translate('high');
-        }
-
-        const reportPeriodOptions = document.getElementById('reportPeriod')?.querySelectorAll('option');
-        if (reportPeriodOptions) {
-          reportPeriodOptions[0].textContent = translate('lastMonth');
-          reportPeriodOptions[1].textContent = translate('last3Months');
-          reportPeriodOptions[2].textContent = translate('lastYear');
-        }
-
-        renderProblems();
-      }
-
-      // Initial translation update
-      updateLanguage();
     }
 
-    // Set the initializer callback for auth.js
-    setAdminPanelInitializer((userId) => {
-      initializeAdminPanel(userId);
-      requestNotificationPermission();
-    });
+    // Cloudinary Configuration
+    const cloudinaryConfig = {
+      cloudName: 'dlfukiusa',
+      apiKey: '438687859144979',
+      uploadPreset: 'fixabairro',
+      folder: 'fixa/resolved'
+    };
 
-    // Logout button handler
-    document.getElementById('logoutButton').addEventListener('click', async () => {
-      try {
-        await signOut(auth);
-        window.location.href = '/login.html';
-      } catch (error) {
-        showToast(translate('errorLogout') + error.message, 'danger');
-        console.error('Erro ao fazer logout:', error);
+    // Event listener for image input change (preview)
+    resolutionImageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          resolutionImagePreview.src = event.target.result;
+          resolutionImagePreview.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+      } else {
+        resolutionImagePreview.src = '';
+        resolutionImagePreview.classList.add('hidden');
       }
     });
-  </script>
+
+    // Event listener for uploading image
+    confirmResolutionUpload.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const file = resolutionImageInput.files[0];
+      if (!file) {
+        showToast(translate('selectImage'), 'warning');
+        return;
+      }
+      if (!currentProblemIdForImage) {
+        showToast('Erro: ID do problema não encontrado para upload.', 'danger');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        showToast('Por favor, selecione uma imagem válida.', 'warning');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('A imagem deve ser menor que 5MB.', 'warning');
+        return;
+      }
+      showToast(translate('uploadingImage'), 'info');
+      confirmResolutionUpload.disabled = true;
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', cloudinaryConfig.uploadPreset);
+        formData.append('folder', cloudinaryConfig.folder);
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryConfig.cloudName}/image/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`Cloudinary error: ${errorData.error.message || response.statusText}`);
+        }
+        const data = await response.json();
+        const imageUrlAfter = data.secure_url;
+        await update(ref(db, `problems/${currentProblemIdForImage}`), { imageUrlAfter: imageUrlAfter });
+        showToast(translate('imageUploadedSuccess'), 'success');
+        resolutionImageModal.classList.add('hidden');
+        confirmResolutionUpload.disabled = false;
+        currentProblemIdForImage = null;
+        resolutionImageInput.value = '';
+        resolutionImagePreview.src = '';
+        resolutionImagePreview.classList.add('hidden');
+      } catch (error) {
+        console.error('Cloudinary upload error:', error);
+        showToast(`${translate('imageUploadError')} ${error.message}`, 'danger');
+        confirmResolutionUpload.disabled = false;
+      }
+    });
+
+    // Modal close buttons for resolution image modal
+    cancelResolutionUpload.addEventListener('click', () => resolutionImageModal.classList.add('hidden'));
+    closeResolutionModal.addEventListener('click', () => resolutionImageModal.classList.add('hidden'));
+
+    // Keyboard navigation for resolution image modal
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !resolutionImageModal.classList.contains('hidden')) {
+        resolutionImageModal.classList.add('hidden');
+        closeResolutionModal.focus();
+      }
+    });
+
+    // Request Notification Permission
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/firebase-messaging-sw.js')
+        .then(registration => {
+          console.log('Service Worker registrado com sucesso:', registration);
+          getToken(messaging, { vapidKey: 'BKnyjZ4OaEOqoOBovd2bu4f-SwrN6WDW6lkSwkd4BQj8RCY5xxQtWFnBSTRWgOksECGYLbVSl-bpJB-pq3yzkkk' })
+            .then(token => {
+              document.getElementById('notificationStatus').textContent = translate('notificationsActive');
+            })
+            .catch(error => {
+              console.error('Erro ao obter token de notificação:', error);
+              document.getElementById('notificationStatus').textContent = translate('notificationsDisabled');
+              showToast(translate('errorNotifications'), 'warning');
+            });
+        })
+        .catch(error => {
+          console.error('Erro ao registrar Service Worker:', error);
+          showToast(translate('errorNotifications'), 'danger');
+        });
+    }
+
+    // Update Language
+    function updateLanguage() {
+      document.querySelectorAll('[data-i18n]').forEach(elem => {
+        const key = elem.dataset.i18n;
+        elem.textContent = translate(key);
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(elem => {
+        const key = elem.dataset.i18nPlaceholder;
+        elem.placeholder = translate(key);
+      });
+      document.querySelectorAll('[data-i18n-options]').forEach(elem => {
+        const key = elem.dataset.i18nOptions;
+        const options = Array.from(elem.options);
+        if (key === 'statusFilterOptions') {
+          options[0].text = translate('allStatuses');
+          options[1].text = translate('pending');
+          options[2].text = translate('inProgress');
+          options[3].text = translate('resolved');
+        } else if (key === 'urgencyFilterOptions') {
+          options[0].text = translate('allUrgencies');
+          options[1].text = translate('low');
+          options[2].text = translate('medium');
+          options[3].text = translate('high');
+        } else if (key === 'reportPeriodOptions') {
+          options[0].text = translate('lastMonth');
+          options[1].text = translate('last3Months');
+          options[2].text = translate('lastYear');
+        }
+      });
+    }
+  });
+</script>
 </body>
 </html>
