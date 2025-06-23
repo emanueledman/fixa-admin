@@ -1,0 +1,7 @@
+POST https://api.ultramsg.com/YOUR_INSTANCE_ID/messages/chat
+Content-Type: application/json
+{
+  "token": "YOUR_ULTRAMSG_TOKEN",
+  "to": "+1234567890",
+  "body": "Test message"
+}
