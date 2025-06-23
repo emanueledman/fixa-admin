@@ -49,7 +49,7 @@ async function createOrUpdateUserDoc(user) {
       });
       console.log('Documento do usuário criado:', user.uid);
     } else {
-      // Atualizar campos ausentes, se necessário
+      // Atualizampos ausentes, se necessário
       const existingData = userDoc.data();
       // Nota: As regras de verificação podem ser mais complexas aqui. Ex: verificar se isResponsible já é false
       if (existingData.isResponsible === false) {

@@ -271,22 +271,25 @@
     import { auth, db, firestore, messaging, signOut, setAdminPanelInitializer } from '/auth.js';
     // Import specific Realtime Database and Firestore functions needed directly
     import { ref, onValue, update, onChildAdded } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-    import { collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { collection, query, where, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { getToken } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js';
+    import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
 
+    // Initialize Firebase Functions
+    const functions = getFunctions();
 
     // Configuration
     const ITEMS_PER_PAGE = 6;
     const RETRY_ATTEMPTS = 3;
     const RETRY_DELAY = 1000;
-    const DEFAULT_REPORT_PERIOD_DAYS = 30; // New constant for report period
+    const DEFAULT_REPORT_PERIOD_DAYS = 30;
 
     // State
     let currentPage = 1;
     let allProblems = [];
     let currentLang = 'pt-BR';
-    let charts = {}; // Object to hold Chart.js instances
-    let currentProblemIdForImage = null; // To store the ID of the problem being resolved
+    let charts = {};
+    let currentProblemIdForImage = null;
 
     // Translations
     const translations = {
@@ -296,11 +299,11 @@
         errorLoading: 'Erro ao carregar problemas',
         errorReports: 'Erro ao carregar relatórios',
         statusUpdated: 'Status atualizado!',
-        problemUpdated: 'Problema atualizado com sucesso!', // Kept for reference but not used anymore
+        problemUpdated: 'Problema atualizado com sucesso!',
         errorUpdate: 'Erro ao atualizar: ',
         notificationsActive: 'Notificações ativas',
         notificationsDisabled: 'Notificações desativadas',
-        titleRequired: 'Título e descrição são obrigatórios!', // Kept for reference but not used anymore
+        titleRequired: 'Título e descrição são obrigatórios!',
         noDate: 'Sem data',
         errorNotifications: 'Erro ao configurar notificações',
         newProblem: 'Novo Problema',
@@ -362,7 +365,16 @@
         nextPage: 'Próxima página',
         next: 'Próximo',
         noTitle: 'Sem título',
-        noDescription: 'Sem descrição'
+        noDescription: 'Sem descrição',
+        noMunicipality: 'Sem município',
+        noNeighborhood: 'Sem bairro',
+        noCategory: 'Sem categoria',
+        noUrgency: 'Sem urgência',
+        noStatus: 'Sem status',
+        noSuggestion: 'Sem sugestão',
+        aguardando: 'Aguardando',
+        emandamento: 'Em Andamento',
+        resolvido: 'Resolvido'
       },
       'en-US': {
         noProblems: 'No problems found',
@@ -436,7 +448,16 @@
         nextPage: 'Next page',
         next: 'Next',
         noTitle: 'No title',
-        noDescription: 'No description'
+        noDescription: 'No description',
+        noMunicipality: 'No municipality',
+        noNeighborhood: 'No neighborhood',
+        noCategory: 'No category',
+        noUrgency: 'No urgency',
+        noStatus: 'No status',
+        noSuggestion: 'No suggestion',
+        aguardando: 'Pending',
+        emandamento: 'In Progress',
+        resolvido: 'Resolved'
       }
     };
 
@@ -496,7 +517,7 @@
       cloudName: 'dlfukiusa',
       apiKey: '438687859144979',
       uploadPreset: 'fixabairro',
-      folder: 'fixa/resolved' // Folder for resolved images
+      folder: 'fixa/resolved'
     };
 
     // Admin Panel Initialization
@@ -516,15 +537,12 @@
       const langDropdown = document.getElementById('langDropdown');
       const langMenu = document.getElementById('langMenu');
       const themeToggle = document.getElementById('themeToggle');
-
-      // References for the new resolution image modal
       const resolutionImageModal = document.getElementById('resolutionImageModal');
       const resolutionImageInput = document.getElementById('resolutionImageInput');
       const resolutionImagePreview = document.getElementById('resolutionImagePreview');
       const confirmResolutionUpload = document.getElementById('confirmResolutionUpload');
       const cancelResolutionUpload = document.getElementById('cancelResolutionUpload');
       const closeResolutionModal = document.getElementById('closeResolutionModal');
-
 
       // Sidebar Toggle
       sidebarOpen.addEventListener('click', () => {
@@ -547,7 +565,7 @@
         const body = document.body;
         const currentTheme = body.dataset.theme;
         body.dataset.theme = currentTheme === 'light' ? 'dark' : 'light';
-        updateCharts(); // Re-render charts with new theme colors
+        updateCharts();
       });
 
       // Load Problems
@@ -584,9 +602,8 @@
         problemsGrid.innerHTML = '';
 
         if (paginatedProblems.length === 0 && filteredProblems.length > 0) {
-          // If no problems on current page but there are filtered problems (e.g., last page had 1 item and now it's gone)
           currentPage = 1;
-          renderProblems(); // Re-render from page 1
+          renderProblems();
           return;
         }
         if (paginatedProblems.length === 0 && filteredProblems.length === 0) {
@@ -594,7 +611,6 @@
           renderPagination();
           return;
         }
-
 
         for (const problem of paginatedProblems) {
           const createdAt = formatDate(problem.createdAt);
@@ -610,19 +626,16 @@
               <p class="text-gray-600"><strong>${translate('status')}:</strong> ${problem.status || translate('noStatus')}</p>
               <p class="text-gray-600"><strong>${translate('suggestion')}:</strong> ${problem.suggestion || translate('noSuggestion')}</p>
               <p class="text-gray-600"><strong>${translate('createdAt')}:</strong> ${createdAt}</p>
-
               ${problem.imageUrlBefore ? `
                 <p class="text-gray-600 mt-4"><strong>${translate('imageBefore')}:</strong></p>
                 <a href="${problem.imageUrlBefore}" target="_blank" aria-label="${translate('viewImageBefore')}">
                   <img src="${problem.imageUrlBefore}" loading="lazy" alt="${translate('problemImageBefore')}" class="mt-2 rounded-lg max-h-48 w-full object-cover">
                 </a>` : `<p class="text-gray-500 mt-4">${translate('noImageBefore')}</p>`}
-
               ${problem.imageUrlAfter ? `
                 <p class="text-gray-600 mt-4"><strong>${translate('imageAfter')}:</strong></p>
                 <a href="${problem.imageUrlAfter}" target="_blank" aria-label="${translate('viewImageAfter')}">
                   <img src="${problem.imageUrlAfter}" loading="lazy" alt="${translate('problemImageAfter')}" class="mt-2 rounded-lg max-h-48 w-full object-cover">
                 </a>` : `<p class="text-gray-500 mt-4">${translate('noImageAfter')}</p>`}
-
               <div class="mt-6 flex space-x-3">
                 <select class="border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="handleStatusChange('${problem.id}', this.value)" aria-label="${translate('changeProblemStatus')}">
                   <option value="Aguardando" ${problem.status === 'Aguardando' ? 'selected' : ''}>${translate('pending')}</option>
@@ -634,7 +647,7 @@
           `;
         }
         renderPagination();
-        updateLanguage(); // Ensure all new elements are translated
+        updateLanguage();
       }
 
       // Filter Problems
@@ -698,7 +711,7 @@
         updateCharts();
       }
 
-      // Update Charts (for Dashboard)
+      // Update Charts
       function updateCharts() {
         const stats = {
           byStatus: { Aguardando: 0, 'Em Andamento': 0, Resolvido: 0 },
@@ -718,15 +731,13 @@
           text: isDarkMode ? '#f3f4f6' : '#1f2937'
         };
 
-        // Destroy existing dashboard charts if they exist
         if (charts.statusChart) charts.statusChart.destroy();
         if (charts.urgencyChart) charts.urgencyChart.destroy();
 
-        // Status Chart (Dashboard)
         charts.statusChart = new Chart(document.getElementById('statusChart').getContext('2d'), {
           type: 'doughnut',
           data: {
-            labels: Object.keys(stats.byStatus).map(key => translate(key.replace(/ /g, '').toLowerCase()) || key), // Translate labels
+            labels: Object.keys(stats.byStatus).map(key => translate(key.replace(/ /g, '').toLowerCase()) || key),
             datasets: [{
               data: Object.values(stats.byStatus),
               backgroundColor: chartColors.status,
@@ -743,11 +754,10 @@
           }
         });
 
-        // Urgency Chart (Dashboard)
         charts.urgencyChart = new Chart(document.getElementById('urgencyChart').getContext('2d'), {
           type: 'bar',
           data: {
-            labels: Object.keys(stats.byUrgency).map(key => translate(key.toLowerCase()) || key), // Translate labels
+            labels: Object.keys(stats.byUrgency).map(key => translate(key.toLowerCase()) || key),
             datasets: [{
               label: translate('problems'),
               data: Object.values(stats.byUrgency),
@@ -787,16 +797,13 @@
         link.addEventListener('click', e => {
           e.preventDefault();
           const section = link.dataset.section;
-          sections.forEach(s => s.classList.add('hidden')); // Hide all sections
-          document.getElementById(`${section}Section`).classList.remove('hidden'); // Show the clicked section
-
-          // Update active link styling
-          sectionLinks.forEach(l => l.classList.remove('bg-gray-600', 'text-white')); // Remove active styling from all
-          link.classList.add('bg-gray-600', 'text-white'); // Add active styling to the clicked link
-
-          if (section === 'reports') loadReports(parseInt(document.getElementById('reportPeriod').value || DEFAULT_REPORT_PERIOD_DAYS)); // Load reports when the section is active
-          else if (section === 'dashboard') updateDashboard(); // Ensure dashboard charts are updated if changing from another section
-          sidebar.classList.add('sidebar-hidden'); // Hide sidebar on mobile
+          sections.forEach(s => s.classList.add('hidden'));
+          document.getElementById(`${section}Section`).classList.remove('hidden');
+          sectionLinks.forEach(l => l.classList.remove('bg-gray-600', 'text-white'));
+          link.classList.add('bg-gray-600', 'text-white');
+          if (section === 'reports') loadReports(parseInt(document.getElementById('reportPeriod').value || DEFAULT_REPORT_PERIOD_DAYS));
+          else if (section === 'dashboard') updateDashboard();
+          sidebar.classList.add('sidebar-hidden');
         });
       });
 
@@ -807,31 +814,79 @@
           currentLang = link.dataset.lang;
           langMenu.classList.add('hidden');
           langDropdown.setAttribute('aria-expanded', 'false');
-          updateLanguage(); // Call to update all i18n elements
-          renderProblems(); // Re-render problems for status dropdowns and other problem-related text
+          updateLanguage();
+          renderProblems();
           if (!document.getElementById('reportsSection').classList.contains('hidden')) {
             loadReports(parseInt(document.getElementById('reportPeriod').value));
           }
-          updateCharts(); // Re-render dashboard charts with new language labels
+          updateCharts();
         });
       });
 
-      // --- New Status Update & Image Upload Logic ---
+      // Status Update & WhatsApp Notification
       window.handleStatusChange = async (problemId, newStatus) => {
         try {
+          // Atualizar o status no Realtime Database
           await update(ref(db, `problems/${problemId}`), { status: newStatus });
           showToast(translate('statusUpdated'), 'success');
 
-          // If status is "Resolvido", open the image upload modal
+          // Obter dados do problema para notificação
+          const problemRef = ref(db, `problems/${problemId}`);
+          const problemSnapshot = await new Promise((resolve, reject) => {
+            onValue(problemRef, resolve, reject, { onlyOnce: true });
+          });
+          const problemData = problemSnapshot.val();
+
+          if (!problemData || !problemData.userId) {
+            console.warn(`Problema ${problemId} não tem userId associado. Notificação não enviada.`);
+          } else {
+            // Obter dados do usuário do Firestore
+            const userDocRef = doc(firestore, 'usuarios', problemData.userId);
+            const userDoc = await getDoc(userDocRef);
+
+            if (!userDoc.exists()) {
+              console.warn(`Usuário ${problemData.userId} não encontrado no Firestore. Notificação não enviada.`);
+            } else {
+              const userData = userDoc.data();
+              if (userData.notificationPreferences?.whatsapp && userData.phoneNumber) {
+                // Validar número de telefone
+                const phoneRegex = /^\+\d{10,15}$/;
+                if (!phoneRegex.test(userData.phoneNumber)) {
+                  console.warn(`Número de telefone inválido: ${userData.phoneNumber}`);
+                } else {
+                  // Chamar Cloud Function para enviar notificação WhatsApp
+                  const sendWhatsAppNotification = httpsCallable(functions, 'sendWhatsAppNotification');
+                  try {
+                    await sendWhatsAppNotification({
+                      phoneNumber: userData.phoneNumber,
+                      problemId,
+                      problemTitle: problemData.title || translate('noTitle'),
+                      newStatus: translate(newStatus.toLowerCase().replace(/ /g, '')),
+                      language: currentLang
+                    });
+                    console.log(`Notificação WhatsApp enviada para ${userData.phoneNumber} sobre o problema ${problemId}`);
+                  } catch (error) {
+                    console.error(`Erro ao enviar notificação WhatsApp: ${error.message}`);
+                    showToast(`Erro ao enviar notificação WhatsApp: ${error.message}`, 'danger');
+                  }
+                }
+              } else {
+                console.log(`Notificações WhatsApp desativadas ou número de telefone ausente para o usuário ${problemData.userId}`);
+              }
+            }
+          }
+
+          // Abrir modal de upload de imagem se status for "Resolvido"
           if (newStatus === 'Resolvido') {
-            currentProblemIdForImage = problemId; // Store the ID
-            resolutionImageInput.value = ''; // Clear previous file selection
+            currentProblemIdForImage = problemId;
+            resolutionImageInput.value = '';
             resolutionImagePreview.src = '';
             resolutionImagePreview.classList.add('hidden');
             resolutionImageModal.classList.remove('hidden');
-            resolutionImageInput.focus(); // Focus on the input for accessibility
+            resolutionImageInput.focus();
           }
         } catch (error) {
+          console.error('Erro ao atualizar status ou enviar notificação:', error);
           showToast(`${translate('errorUpdate')} ${error.message}`, 'danger');
         }
       };
@@ -854,57 +909,54 @@
 
       // Event listener for uploading image
       confirmResolutionUpload.addEventListener('click', async (e) => {
-        e.preventDefault(); // Prevent default form submission
-
+        e.preventDefault();
         const file = resolutionImageInput.files[0];
         if (!file) {
           showToast(translate('selectImage'), 'warning');
           return;
         }
-
         if (!currentProblemIdForImage) {
           showToast('Erro: ID do problema não encontrado para upload.', 'danger');
           return;
         }
-
+        // Validate file type and size
+        if (!file.type.startsWith('image/')) {
+          showToast('Por favor, selecione uma imagem válida.', 'warning');
+          return;
+        }
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+          showToast('A imagem deve ser menor que 5MB.', 'warning');
+          return;
+        }
         showToast(translate('uploadingImage'), 'info');
-        confirmResolutionUpload.disabled = true; // Disable button during upload
-
+        confirmResolutionUpload.disabled = true;
         try {
           const formData = new FormData();
           formData.append('file', file);
           formData.append('upload_preset', cloudinaryConfig.uploadPreset);
           formData.append('folder', cloudinaryConfig.folder);
-          // formData.append('api_key', cloudinaryConfig.apiKey); // Often not strictly necessary for upload presets, but good for explicit clarity
-
           const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryConfig.cloudName}/image/upload`, {
             method: 'POST',
             body: formData,
           });
-
           if (!response.ok) {
             const errorData = await response.json();
             throw new Error(`Cloudinary error: ${errorData.error.message || response.statusText}`);
           }
-
           const data = await response.json();
           const imageUrlAfter = data.secure_url;
-
-          // Update Firebase Realtime Database with the new image URL
           await update(ref(db, `problems/${currentProblemIdForImage}`), { imageUrlAfter: imageUrlAfter });
-
           showToast(translate('imageUploadedSuccess'), 'success');
-          resolutionImageModal.classList.add('hidden'); // Close modal
-          confirmResolutionUpload.disabled = false; // Re-enable button
-          currentProblemIdForImage = null; // Clear problem ID
-          resolutionImageInput.value = ''; // Clear input
-          resolutionImagePreview.src = ''; // Clear preview
-          resolutionImagePreview.classList.add('hidden'); // Hide preview
-
+          resolutionImageModal.classList.add('hidden');
+          confirmResolutionUpload.disabled = false;
+          currentProblemIdForImage = null;
+          resolutionImageInput.value = '';
+          resolutionImagePreview.src = '';
+          resolutionImagePreview.classList.add('hidden');
         } catch (error) {
           console.error('Cloudinary upload error:', error);
           showToast(`${translate('imageUploadError')} ${error.message}`, 'danger');
-          confirmResolutionUpload.disabled = false; // Re-enable button on error
+          confirmResolutionUpload.disabled = false;
         }
       });
 
@@ -919,8 +971,6 @@
           closeResolutionModal.focus();
         }
       });
-      // --- End New Status Update & Image Upload Logic ---
-
 
       // Reports
       async function loadReports(periodDays) {
@@ -936,7 +986,6 @@
 
           querySnapshot.forEach(doc => {
             const data = doc.data();
-            // Ensure only problems assigned to the current user are counted for reports as well
             if (data.responsibleId !== userId) return;
             stats.byStatus[data.status] = (stats.byStatus[data.status] || 0) + 1;
             stats.byUrgency[data.urgency] = (stats.byUrgency[data.urgency] || 0) + 1;
@@ -950,11 +999,9 @@
             text: isDarkMode ? '#f3f4f6' : '#1f2937'
           };
 
-          // Destroy existing report charts if they exist
           if (charts.statusChartReports) charts.statusChartReports.destroy();
           if (charts.urgencyChartReports) charts.urgencyChartReports.destroy();
 
-          // Status Chart (Reports)
           charts.statusChartReports = new Chart(document.getElementById('statusChartReports').getContext('2d'), {
             type: 'pie',
             data: {
@@ -975,7 +1022,6 @@
             }
           });
 
-          // Urgency Chart (Reports)
           charts.urgencyChartReports = new Chart(document.getElementById('urgencyChartReports').getContext('2d'), {
             type: 'bar',
             data: {
@@ -1000,7 +1046,7 @@
               }
             }
           });
-          updateLanguage(); // Ensure report chart titles/labels are translated
+          updateLanguage();
         } catch (error) {
           showToast(translate('errorReports'), 'danger');
           console.error('Erro ao carregar relatórios:', error);
@@ -1010,11 +1056,9 @@
       // Notifications for New Problems
       onChildAdded(ref(db, 'problems'), snapshot => {
         const problem = snapshot.val();
-        // Only show notification if the new problem is assigned to this user and notifications are granted
         if (problem.responsibleId !== userId || Notification.permission !== 'granted') return;
-
         new Notification(translate('newProblem'), {
-          body: `${problem.title || translate('noTitle')} - ${problem.description || translate('noDescription')}`, // Use translations
+          body: `${problem.title || translate('noTitle')} - ${problem.description || translate('noDescription')}`,
           icon: '/assets/icons/Icon-192.png'
         });
       });
@@ -1029,56 +1073,51 @@
           element.textContent = translate(key);
         });
 
-        // Update placeholder texts
         document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
-            const key = element.dataset.i18nPlaceholder;
-            element.placeholder = translate(key);
+          const key = element.dataset.i18nPlaceholder;
+          element.placeholder = translate(key);
         });
 
-        // Update select option texts
         const statusFilterOptions = document.getElementById('statusFilter')?.querySelectorAll('option');
         if (statusFilterOptions) {
-            statusFilterOptions[0].textContent = translate('allStatuses');
-            statusFilterOptions[1].textContent = translate('pending');
-            statusFilterOptions[2].textContent = translate('inProgress');
-            statusFilterOptions[3].textContent = translate('resolved');
+          statusFilterOptions[0].textContent = translate('allStatuses');
+          statusFilterOptions[1].textContent = translate('pending');
+          statusFilterOptions[2].textContent = translate('inProgress');
+          statusFilterOptions[3].textContent = translate('resolved');
         }
-
 
         const urgencyFilterOptions = document.getElementById('urgencyFilter')?.querySelectorAll('option');
         if (urgencyFilterOptions) {
-            urgencyFilterOptions[0].textContent = translate('allUrgencies');
-            urgencyFilterOptions[1].textContent = translate('low');
-            urgencyFilterOptions[2].textContent = translate('medium');
-            urgencyFilterOptions[3].textContent = translate('high');
+          urgencyFilterOptions[0].textContent = translate('allUrgencies');
+          urgencyFilterOptions[1].textContent = translate('low');
+          urgencyFilterOptions[2].textContent = translate('medium');
+          urgencyFilterOptions[3].textContent = translate('high');
         }
-
 
         const reportPeriodOptions = document.getElementById('reportPeriod')?.querySelectorAll('option');
         if (reportPeriodOptions) {
-            reportPeriodOptions[0].textContent = translate('lastMonth');
-            reportPeriodOptions[1].textContent = translate('last3Months');
-            reportPeriodOptions[2].textContent = translate('lastYear');
+          reportPeriodOptions[0].textContent = translate('lastMonth');
+          reportPeriodOptions[1].textContent = translate('last3Months');
+          reportPeriodOptions[2].textContent = translate('lastYear');
         }
 
-        // Re-render problems to update status/urgency dropdowns and image labels
         renderProblems();
       }
 
-      // Initial translation update after everything is rendered
+      // Initial translation update
       updateLanguage();
     }
 
     // Set the initializer callback for auth.js
     setAdminPanelInitializer((userId) => {
-        initializeAdminPanel(userId);
-        requestNotificationPermission(); // Request notifications after panel init
+      initializeAdminPanel(userId);
+      requestNotificationPermission();
     });
 
-    // Logout button handler (specific to index.html's logout button)
+    // Logout button handler
     document.getElementById('logoutButton').addEventListener('click', async () => {
       try {
-        await signOut(auth); // Use signOut imported from auth.js
+        await signOut(auth);
         window.location.href = '/login.html';
       } catch (error) {
         showToast(translate('errorLogout') + error.message, 'danger');
