@@ -2,9 +2,16 @@ const functions = require('firebase-functions');
 const cors = require('cors')({ origin: true }); // Permite todas as origens (ajuste para produção)
 const axios = require('axios');
 
+
+
+
+
+
+
+
 // Configurações da API UltraMsg (armazenadas no Firebase Config para segurança)
-const ULTRA_MSG_TOKEN = functions.config().ultramsg.token || 'dklefhlqae1key9l';
-const ULTRA_MSG_INSTANCE_ID = functions.config().ultramsg.instance_id || 'instance126366';
+const ULTRA_MSG_TOKEN = functions.config().ultramsg.token || 'kmtvn316xo7krhk4';
+const ULTRA_MSG_INSTANCE_ID = functions.config().ultramsg.instance_id || 'instance127492';
 
 exports.sendWhatsAppNotification = functions.https.onCall(async (data, context) => {
   const { phoneNumber, problemId, problemTitle, newStatus, language } = data;
